@@ -494,8 +494,12 @@ const firebaseConfig = {
   appId: "1:966899363835:web:12ca43b3223139cd1ae55e"
 };
 
-const ADMINS = ['nadia@ifce.edu.br','diren@ifce.edu.br'];
+const ADMINS_FULL = ['nadia.andrade@ifce.edu.br','dg.caninde@ifce.edu.br','diren.caninde@ifce.edu.br'];
+const ADMINS_CDH  = ['cdh@caninde.ifce.edu.br'];
+const ADMINS      = [...ADMINS_FULL, ...ADMINS_CDH];
+window._userEmail = '';
 function isAdmin(email){ return ADMINS.some(a=>a===email?.toLowerCase()); }
+function isFullAdmin(email){ return ADMINS_FULL.some(a=>a===email?.toLowerCase()); }
 
 const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
@@ -545,9 +549,12 @@ if(isSignInWithEmailLink(auth, window.location.href)){
 
 onAuthStateChanged(auth, user=>{
   if(user && isAdmin(user.email)){
+    window._userEmail = user.email.toLowerCase();
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('app').style.display='block';
     document.getElementById('userDisplay').textContent=user.email;
+    // Controle de abas por perfil
+    aplicarPerfil(user.email);
     loadSemestres();
     loadPublishedStats();
     atualizarHeaderSem();
@@ -559,6 +566,18 @@ onAuthStateChanged(auth, user=>{
     document.getElementById('app').style.display='none';
   }
 });
+
+function aplicarPerfil(email){
+  const full = isFullAdmin(email);
+  // Abas restritas: publicar e administração — só para admins completos
+  ['publicar','admin'].forEach(id=>{
+    const tab = document.querySelector('.tab[data-a="'+id+'"]');
+    if(tab) tab.style.display = full ? '' : 'none';
+  });
+  // Badge de perfil
+  const badge = document.getElementById('userDisplay');
+  if(badge) badge.textContent = email + (full ? ' · Admin' : ' · Comissão');
+}
 
 // ── Semestres ──
 let semestres=[], vigente='';
@@ -616,6 +635,7 @@ function updateUploadSelect(){
 }
 
 window.addSemestre = async function(){
+  if(!isFullAdmin(window._userEmail)){ alert('Acesso restrito.'); return; }
   const v=document.getElementById('newSem').value.trim();
   if(!v) return alert('Informe o código (ex: 2026.2)');
   if(!/^\d{4}\.\d$/.test(v)) return alert('Formato inválido. Use AAAA.N (ex: 2026.2)');
@@ -628,6 +648,7 @@ window.addSemestre = async function(){
 };
 
 window.setVigente = async function(semId){
+  if(!isFullAdmin(window._userEmail)){ alert('Acesso restrito.'); return; }
   if(!confirm('Definir "'+semId+'" como vigente?\n\nA consulta pública e o PIT/RIT passarão a usar este semestre.')) return;
   try{
     await _setDoc(_doc(_db,'configuracoes','status'),{vigente:semId,atualizadoEm:new Date().toISOString()});
@@ -638,6 +659,7 @@ window.setVigente = async function(semId){
 };
 
 window.removeSemestre = async function(semId){
+  if(!isFullAdmin(window._userEmail)){ alert('Acesso restrito.'); return; }
   if(!confirm('Remover semestre "'+semId+'"?\n\nIsso remove o semestre E todos os horários vinculados no Firestore.\n\nIrreversível!')) return;
   try{
     const q=_query(_collection(_db,'horarios'),_where('semestre','==',semId));
@@ -689,6 +711,7 @@ window._loadPublishedStats = loadPublishedStats;
 
 // ── Publicar grade no Firestore ──
 window.publicarGrade = async function(){
+  if(!isFullAdmin(window._userEmail)){ alert('Acesso restrito. Apenas administradores podem publicar.'); return; }
   const sem = window._vigenteGlobal;
   if(!sem){ alert('Nenhum semestre vigente definido. Configure na aba Administração.'); return; }
   if(!confirm('Publicar a grade montada como semestre "'+sem+'"?\n\nOs dados anteriores deste semestre serão sobrescritos. Os professores e alunos verão a nova grade imediatamente.')) return;
