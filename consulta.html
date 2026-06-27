@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="description" content="Consulta de horários dos professores — IFCE Campus Canindé">
+<title>Horários Docentes — IFCE Campus Canindé</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g1:#14532d;--g2:#166534;--g3:#22c55e;--g4:#86efac;
+  --bg:#f0f2eb;--card:#fff;--bdr:#e5e7eb;--r:12px;
+  --txt:#1a1a1a;--txt2:#6b7280;--txt3:#9ca3af;
+  --blue:#1d4ed8;--bluebg:#dbeafe;
+  --green:#15803d;--greenbg:#dcfce7;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.04);
+}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--txt);min-height:100dvh;padding-bottom:48px}
+
+/* ── Header ── */
+.hdr{background:var(--g1);color:#fff;padding:22px 16px 48px;text-align:center;position:relative;overflow:hidden}
+.hdr::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 120%,rgba(34,197,94,.18) 0%,transparent 70%)}
+.hdr::after{content:'';position:absolute;bottom:-30px;left:-20px;right:-20px;height:62px;background:var(--bg);border-radius:50% 50% 0 0}
+.hdr-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:5px 14px;font-size:11px;font-weight:500;letter-spacing:.5px;margin-bottom:12px;position:relative}
+.hdr-dot{width:6px;height:6px;border-radius:50%;background:var(--g3);animation:pulse 2s ease infinite}
+.hdr h1{font-family:'Fraunces',serif;font-size:clamp(20px,5vw,26px);font-weight:700;letter-spacing:-.3px;line-height:1.2;position:relative}
+.hdr-sem{display:inline-block;margin-top:10px;padding:4px 14px;background:rgba(255,255,255,.15);border-radius:20px;font-size:12px;font-weight:600;position:relative}
+
+/* ── Container ── */
+.ctn{max-width:560px;margin:0 auto;padding:0 14px}
+
+/* ── Tabs de modo ── */
+.mode-tabs{display:flex;gap:6px;padding:20px 0 10px;position:relative;z-index:2}
+.mode-tab{flex:1;padding:9px 12px;border-radius:var(--r);border:1.5px solid var(--bdr);background:var(--card);font-size:13px;font-weight:600;color:var(--txt2);cursor:pointer;text-align:center;transition:all .18s;font-family:inherit}
+.mode-tab.on{background:var(--g1);color:#fff;border-color:var(--g1)}
+.mode-tab:hover:not(.on){border-color:var(--g3);color:var(--g1)}
+
+/* ── Search ── */
+.search-wrap{position:relative;z-index:2}
+.search-box{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);border:2px solid transparent;transition:border-color .2s}
+.search-box:focus-within{border-color:var(--g3)}
+.search-inner{padding:14px 16px}
+.search-box label{font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:6px}
+.search-row{display:flex;align-items:center;gap:10px}
+.search-icon{font-size:18px;flex-shrink:0;color:var(--txt3)}
+.search-box input{flex:1;border:none;outline:none;font-size:17px;font-family:inherit;color:var(--txt);background:transparent;padding:4px 0}
+.search-box input::placeholder{color:var(--txt3)}
+.search-clear{background:none;border:none;cursor:pointer;color:var(--txt3);font-size:18px;padding:4px;border-radius:6px;transition:color .15s;display:none}
+.search-clear:hover{color:var(--txt)}
+
+/* ── Results list ── */
+.results{margin-top:8px}
+.res-item{background:var(--card);border-radius:var(--r);padding:13px 16px;margin-bottom:6px;cursor:pointer;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;transition:transform .1s,box-shadow .15s;border:1px solid var(--bdr)}
+.res-item:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,0,0,.08);border-color:var(--g3)}
+.res-item:active{transform:scale(.98)}
+.res-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-weight:700;font-size:15px;flex-shrink:0}
+.res-info{flex:1;min-width:0}
+.res-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res-sub{font-size:11px;color:var(--txt2);margin-top:2px}
+.res-chevron{color:var(--txt3);font-size:16px;flex-shrink:0}
+
+/* ── Estado vazio / loading ── */
+.state{text-align:center;padding:40px 16px;color:var(--txt2)}
+.state-icon{font-size:40px;margin-bottom:10px;opacity:.4}
+.state-txt{font-size:14px;margin-bottom:4px}
+.state-sub{font-size:12px;color:var(--txt3)}
+.loader{display:inline-block;width:20px;height:20px;border:2px solid var(--bdr);border-top-color:var(--g3);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:10px}
+
+/* ── Vista professor ── */
+.prof-view{display:none;margin-top:16px}
+.prof-view.active{display:block}
+.prof-back{font-size:13px;color:var(--g2);cursor:pointer;display:inline-flex;align-items:center;gap:5px;margin-bottom:12px;font-weight:600;padding:6px 10px;border-radius:8px;transition:background .15s}
+.prof-back:hover{background:rgba(22,101,52,.08)}
+.prof-card{background:var(--card);border-radius:var(--r);padding:18px;box-shadow:var(--shadow);margin-bottom:12px;border:1px solid var(--bdr)}
+.prof-header{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.prof-av-lg{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-weight:700;font-size:22px;flex-shrink:0}
+.prof-nm{font-family:'Fraunces',serif;font-size:19px;font-weight:700;line-height:1.2}
+.prof-meta{font-size:12px;color:var(--txt2);margin-top:3px}
+.prof-stats{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.stat{padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600}
+.stat-aula{background:var(--bluebg,#dbeafe);color:var(--blue)}
+.stat-att{background:var(--greenbg,#dcfce7);color:var(--green)}
+
+/* ── Legenda ── */
+.leg{display:flex;gap:8px 14px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;color:var(--txt2)}
+.leg-i{display:flex;align-items:center;gap:4px}
+.leg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+
+/* ── Tabela de grade ── */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--r);border:1px solid var(--bdr)}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:500px}
+th{background:var(--g1);color:#fff;padding:7px 4px;font-weight:600;text-align:center;font-size:10px;letter-spacing:.3px;text-transform:uppercase;position:sticky;top:0}
+td{padding:2px 2px;border:1px solid #f0f0ee;text-align:center;vertical-align:top;height:36px}
+td.slot-label{background:#f8faf8;font-weight:600;color:var(--g1);font-size:9px;text-align:left;padding-left:7px;width:70px;white-space:nowrap;border-right:2px solid #e5e7eb}
+.cell-aula{background:var(--blue);color:#fff;border-radius:4px;padding:3px 4px;font-size:8px;line-height:1.3;margin:1px;min-height:30px;display:flex;flex-direction:column;justify-content:center}
+.cell-aula .disc{font-weight:700;font-size:8.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100px;display:block}
+.cell-aula .turma{font-size:7.5px;opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100px;display:block}
+.cell-aula .sala{font-size:7px;opacity:.7;margin-top:1px;display:block}
+.cell-att{background:var(--green);color:#fff;border-radius:4px;padding:3px 4px;font-size:9px;line-height:1.3;margin:1px;min-height:30px;display:flex;flex-direction:column;justify-content:center;align-items:center}
+.cell-att .att-txt{font-weight:700;font-size:9px}
+.cell-att .att-sub{font-size:7.5px;opacity:.85}
+
+/* ── Lista de disciplinas ── */
+.disc-list{margin-top:12px}
+.disc-section-title{font-size:12px;font-weight:700;margin-bottom:7px;margin-top:14px;display:flex;align-items:center;gap:5px}
+.disc-item{font-size:12px;padding:6px 0;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.disc-item:last-child{border-bottom:none}
+.disc-nm{flex:1;min-width:0;line-height:1.4}
+.disc-tag{font-size:10px;color:var(--txt2);font-weight:400;display:block;margin-top:1px}
+.disc-ch{padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;flex-shrink:0;white-space:nowrap}
+.atu{text-align:right;font-size:10px;color:var(--txt3);margin-top:10px}
+
+/* ── Vista turmas ── */
+.turma-grid{margin-top:8px;display:flex;flex-direction:column;gap:8px}
+.turma-card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);border:1px solid var(--bdr);overflow:hidden;cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.turma-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.1);border-color:var(--g3)}
+.turma-hdr{padding:13px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.turma-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.turma-nome{font-size:15px;font-weight:700}
+.turma-meta{font-size:11px;color:var(--txt2);margin-top:2px}
+.turma-chevron{color:var(--txt3);transition:transform .2s}
+.turma-card.open .turma-chevron{transform:rotate(90deg)}
+.turma-body{display:none;border-top:1px solid var(--bdr);padding:12px 14px}
+.turma-card.open .turma-body{display:block}
+.turma-aula{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:12px}
+.turma-aula:last-child{border-bottom:none}
+.turma-slot{font-size:10px;font-weight:700;color:var(--g2);min-width:72px;flex-shrink:0;line-height:1.4}
+.turma-disc{flex:1}
+.turma-disc-nome{font-weight:600}
+.turma-disc-prof{color:var(--txt2);font-size:11px}
+.turma-disc-sala{color:var(--g2);font-size:10px;font-weight:600}
+
+/* ── Filtro de cursos ── */
+.filtro-wrap{margin:8px 0 4px;overflow-x:auto;padding-bottom:4px}
+.filtro-inner{display:flex;gap:6px;min-width:max-content}
+.filtro-btn{padding:5px 12px;border-radius:20px;border:1.5px solid var(--bdr);background:var(--card);font-size:11px;font-weight:600;color:var(--txt2);cursor:pointer;white-space:nowrap;transition:all .15s;font-family:inherit}
+.filtro-btn.on{background:var(--g1);color:#fff;border-color:var(--g1)}
+
+/* ── Seção de busca turma ── */
+#view-turma{display:none}
+#view-turma.active{display:block}
+
+/* ── Footer ── */
+.ft{text-align:center;padding:20px 14px;font-size:10px;color:var(--txt3);margin-top:20px;line-height:1.8}
+.ft a{color:var(--g2);text-decoration:none}
+#syncStatus{display:inline-flex;align-items:center;gap:5px;margin-top:4px}
+
+/* ── Animações ── */
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .25s ease both}
+
+@media(max-width:380px){
+  .hdr h1{font-size:18px}
+  table{min-width:440px}
+  .prof-nm{font-size:17px}
+  .mode-tab{font-size:12px;padding:8px 8px}
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="hdr">
+  <div class="hdr-badge"><div class="hdr-dot"></div> IFCE Campus Canindé</div>
+  <h1>Consulta de Horários</h1>
+  <div class="hdr-sem" id="semBadge">Carregando semestre...</div>
+</div>
+
+<div class="ctn">
+
+  <!-- Modo: Professor / Turma -->
+  <div class="mode-tabs">
+    <button class="mode-tab on" id="tab-prof" onclick="setModo('prof')">👤 Por professor</button>
+    <button class="mode-tab" id="tab-turma" onclick="setModo('turma')">📋 Por turma</button>
+  </div>
+
+  <!-- ═══ MODO PROFESSOR ═══ -->
+  <div id="view-prof">
+
+    <div class="search-wrap">
+      <div class="search-box">
+        <div class="search-inner">
+          <label>Buscar docente</label>
+          <div class="search-row">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="Nome do professor..." autocomplete="off" inputmode="search">
+            <button class="search-clear" id="btnClear" onclick="limparBusca()">✕</button>
+          </div>
+        </div>
+      </div>
+      <div class="results" id="results">
+        <div class="state" id="searchState">
+          <div class="state-icon">👨‍🏫</div>
+          <div class="state-txt">Digite o nome do professor</div>
+          <div class="state-sub">Os horários são carregados em tempo real</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vista individual do professor -->
+    <div class="prof-view" id="profView">
+
+      <button class="prof-back" onclick="voltarProfessor()">← Voltar à busca</button>
+
+      <div class="prof-card">
+        <div class="prof-header">
+          <div class="prof-av-lg" id="profAvatar"></div>
+          <div>
+            <div class="prof-nm" id="profNome"></div>
+            <div class="prof-meta" id="profMeta"></div>
+          </div>
+        </div>
+        <div class="prof-stats" id="profStats"></div>
+
+        <div class="leg">
+          <div class="leg-i"><div class="leg-dot" style="background:#1d4ed8"></div><span>Aula</span></div>
+          <div class="leg-i"><div class="leg-dot" style="background:#15803d"></div><span>Atendimento a alunos</span></div>
+        </div>
+
+        <div class="tbl-wrap">
+          <table id="gradeTable"></table>
+        </div>
+
+        <div class="disc-list" id="discList"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ MODO TURMA ═══ -->
+  <div id="view-turma">
+
+    <div class="search-box" style="margin-bottom:8px">
+      <div class="search-inner">
+        <label>Buscar turma ou disciplina</label>
+        <div class="search-row">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchTurma" placeholder="Ex: ADS, Matemática, ELE..." autocomplete="off" oninput="filtrarTurmas()">
+          <button class="search-clear" id="btnClearTurma" onclick="limparBuscaTurma()" style="display:none">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="filtro-wrap">
+      <div class="filtro-inner" id="filtroCursos"></div>
+    </div>
+
+    <div class="turma-grid" id="turmaGrid">
+      <div class="state">
+        <div class="loader"></div>
+        <div class="state-txt">Carregando turmas...</div>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /ctn -->
+
+<!-- Footer -->
+<footer class="ft">
+  IFCE Campus Canindé — Consulta pública de horários<br>
+  <a href="#">Resoluções 39/2016 e 63/2018</a> · <a href="#">Nota Técnica 3/2023</a><br>
+  <span id="syncStatus">Conectando ao servidor...</span>
+</footer>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js';
+import { getFirestore, doc, getDoc, collection, query, where, getDocs, onSnapshot }
+  from 'https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBqIHLkTsIWRVG4iByZvDqRrHKB4nExh1o",
+  authDomain: "sistema-integrado-2bf85.firebaseapp.com",
+  projectId: "sistema-integrado-2bf85",
+  storageBucket: "sistema-integrado-2bf85.firebasestorage.app",
+  messagingSenderId: "966899363835",
+  appId: "1:966899363835:web:12ca43b3223139cd1ae55e"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// ── Estado global ──
+let PROFS = {};      // { nomeProfessor: docFirestore }
+let TURMAS = [];     // [ docFirestore de grade_turmas ]
+let semVigente = '';
+let currentProf = null;
+let cursoFiltro = 'TODOS';
+let modo = 'prof';
+
+// ── Helpers ──
+const esc = s => s == null ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const remAc = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+const initials = n => { const p=n.trim().split(/\s+/); return (p[0]?p[0][0]:'')+(p.length>1?p[p.length-1][0]:''); };
+
+const DIAS = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const SLOTS = [
+  {id:'AM',l:'7:45',h:'07:45-08:45'},{id:'BM',l:'8:45',h:'08:45-09:45'},
+  {id:'CM',l:'10:00',h:'10:00-11:00'},{id:'DM',l:'11:00',h:'11:00-12:00'},
+  {id:'AT',l:'13:45',h:'13:45-14:45'},{id:'BT',l:'14:45',h:'14:45-15:45'},
+  {id:'CT',l:'16:00',h:'16:00-17:00'},{id:'DT',l:'17:00',h:'17:00-18:00'},
+  {id:'AN',l:'18:30',h:'18:30-19:20'},{id:'BN',l:'19:20',h:'19:20-20:10'},
+  {id:'CN',l:'20:30',h:'20:30-21:20'},{id:'DN',l:'21:20',h:'21:20-22:00'}
+];
+
+const CORES = {
+  aula:'#1d4ed8', aula_externa:'#0277BD', atendimento:'#15803d'
+};
+const LABELS = {
+  atendimento:'Atend.', aula_externa:'Aula'
+};
+
+const COR_CURSO = {
+  TUR:{bg:'#e8f8f0',tx:'#1b5e20'}, RED:{bg:'#e8f0fb',tx:'#1a237e'},
+  INF:{bg:'#f3e5f5',tx:'#4a148c'}, ADS:{bg:'#e3f2fd',tx:'#0d47a1'},
+  MAT:{bg:'#fff8e1',tx:'#e65100'}, PED:{bg:'#fce4ec',tx:'#880e4f'},
+  CLEF:{bg:'#e0f7fa',tx:'#006064'}, MUS:{bg:'#ede7f6',tx:'#4a148c'},
+  ELE:{bg:'#fbe9e7',tx:'#bf360c'}, EVT:{bg:'#f9fbe7',tx:'#33691e'},
+  EXT:{bg:'#f3f3f3',tx:'#212121'}
+};
+const NOMES_CURSO = {
+  ADS:'Análise e Des. de Sistemas', RED:'Redes de Computadores',
+  INF:'Informática', MAT:'Matemática', PED:'Pedagogia',
+  CLEF:'Licenciatura em Ed. Física', MUS:'Licenciatura em Música',
+  ELE:'Eletrônica', EVT:'Eventos (Integrado)', EXT:'Centro de Idiomas', TUR:'Turismo'
+};
+
+// ═══════════════ INIT ═══════════════
+async function init() {
+  setSyncStatus('⏳', 'Conectando...', '#f59e0b');
+  try {
+    const statusDoc = await getDoc(doc(db,'configuracoes','status'));
+    if(statusDoc.exists() && statusDoc.data().vigente){
+      semVigente = statusDoc.data().vigente;
+      document.getElementById('semBadge').textContent = '📅 Semestre ' + semVigente;
+    } else {
+      document.getElementById('semBadge').textContent = 'Sem semestre vigente';
+      setSyncStatus('⚠️','Nenhum semestre definido pelo administrador','#f59e0b');
+    }
+    await Promise.all([carregarProfessores(), carregarTurmas()]);
+  } catch(e) {
+    console.error(e);
+    setSyncStatus('❌','Erro de conexão: '+e.message,'#ef4444');
+    document.getElementById('semBadge').textContent = 'Erro de conexão';
+  }
+}
+
+async function carregarProfessores() {
+  try {
+    let snap;
+    if(semVigente){
+      snap = await getDocs(query(collection(db,'horarios'), where('semestre','==',semVigente)));
+    } else {
+      snap = await getDocs(collection(db,'horarios'));
+    }
+    let count = 0;
+    snap.forEach(d => { const data=d.data(); if(data.nome){ PROFS[data.nome]=data; count++; }});
+
+    setSyncStatus('●', count+' docentes · '+semVigente, '#22c55e');
+
+    // Listener tempo real
+    const q = semVigente
+      ? query(collection(db,'horarios'), where('semestre','==',semVigente))
+      : collection(db,'horarios');
+    onSnapshot(q, snap => {
+      snap.forEach(d => { const data=d.data(); if(data.nome) PROFS[data.nome]=data; });
+      if(currentProf && PROFS[currentProf]) renderProf(currentProf);
+    });
+  } catch(e) { console.error('Erro profs:',e); }
+}
+
+async function carregarTurmas() {
+  try {
+    let snap;
+    if(semVigente){
+      snap = await getDocs(query(collection(db,'grade_turmas'), where('semestre_vigente','==',semVigente)));
+    } else {
+      snap = await getDocs(collection(db,'grade_turmas'));
+    }
+    TURMAS = [];
+    snap.forEach(d => TURMAS.push(d.data()));
+    TURMAS.sort((a,b) => {
+      const ca=a.curso||'', cb=b.curso||'';
+      if(ca!==cb) return ca.localeCompare(cb,'pt');
+      return (a.semestre||'').localeCompare(b.semestre||'','pt');
+    });
+    renderFiltroCursos();
+    renderTurmas();
+  } catch(e) {
+    // grade_turmas pode não existir ainda — silencioso
+    document.getElementById('turmaGrid').innerHTML = '<div class="state"><div class="state-icon">📋</div><div class="state-txt">Dados de turmas ainda não publicados</div><div class="state-sub">O administrador precisa publicar a grade no painel</div></div>';
+  }
+}
+
+function setSyncStatus(icon, txt, cor) {
+  const el = document.getElementById('syncStatus');
+  el.innerHTML = icon + ' ' + esc(txt);
+  el.style.color = cor;
+}
+
+// ═══════════════ MODO ═══════════════
+window.setModo = function(m) {
+  modo = m;
+  document.getElementById('view-prof').style.display = m==='prof' ? 'block' : 'none';
+  document.getElementById('view-turma').style.display = m==='turma' ? 'block' : 'none';
+  document.getElementById('tab-prof').classList.toggle('on', m==='prof');
+  document.getElementById('tab-turma').classList.toggle('on', m==='turma');
+  if(m==='prof' && currentProf){
+    document.getElementById('profView').style.display='block';
+  }
+};
+
+// ═══════════════ BUSCA PROFESSOR ═══════════════
+const input = document.getElementById('searchInput');
+input.addEventListener('input', function() {
+  const q = remAc(this.value.trim());
+  const clearBtn = document.getElementById('btnClear');
+  clearBtn.style.display = q ? 'block' : 'none';
+
+  if(q.length < 1) {
+    document.getElementById('results').innerHTML = '<div class="state" id="searchState"><div class="state-icon">👨‍🏫</div><div class="state-txt">Digite o nome do professor</div><div class="state-sub">Os horários são atualizados em tempo real</div></div>';
+    return;
+  }
+
+  const names = Object.keys(PROFS)
+    .filter(n => remAc(n).includes(q))
+    .sort((a,b) => a.localeCompare(b,'pt'));
+
+  if(!names.length) {
+    document.getElementById('results').innerHTML = '<div class="state"><div class="state-icon">🔍</div><div class="state-txt">Nenhum docente encontrado</div><div class="state-sub">Verifique a ortografia ou tente parte do nome</div></div>';
+    return;
+  }
+
+  document.getElementById('results').innerHTML = names.slice(0,10).map(nm => {
+    const d = PROFS[nm];
+    const nDisc = (d.disciplinas||[]).length;
+    return `<div class="res-item fade-up" onclick="showProf('${esc(nm.replace(/'/g,"\\'"))}')">
+      <div class="res-avatar">${initials(nm)}</div>
+      <div class="res-info">
+        <div class="res-name">${esc(nm)}</div>
+        <div class="res-sub">${d.total_aulas||0}h aulas · ${nDisc} disciplina${nDisc!==1?'s':''}</div>
+      </div>
+      <span class="res-chevron">›</span>
+    </div>`;
+  }).join('');
+});
+
+window.limparBusca = function() {
+  input.value = '';
+  document.getElementById('btnClear').style.display='none';
+  document.getElementById('results').innerHTML = '<div class="state"><div class="state-icon">👨‍🏫</div><div class="state-txt">Digite o nome do professor</div></div>';
+  input.focus();
+};
+
+// ═══════════════ EXIBIR PROFESSOR ═══════════════
+window.showProf = function(nm) {
+  const d = PROFS[nm]; if(!d) return;
+  currentProf = nm;
+  document.getElementById('searchWrap') && (document.getElementById('searchWrap').style.display='none');
+  // esconder resultados e campo
+  document.querySelector('.search-wrap').style.display = 'none';
+  document.getElementById('results').innerHTML = '';
+  const pv = document.getElementById('profView');
+  pv.style.display = 'block';
+  pv.classList.add('active');
+  renderProf(nm);
+  window.scrollTo({top:0,behavior:'smooth'});
+};
+
+window.voltarProfessor = function() {
+  currentProf = null;
+  document.getElementById('profView').style.display = 'none';
+  document.getElementById('profView').classList.remove('active');
+  document.querySelector('.search-wrap').style.display = 'block';
+  input.value = '';
+  document.getElementById('btnClear').style.display='none';
+  document.getElementById('results').innerHTML = '<div class="state"><div class="state-icon">👨‍🏫</div><div class="state-txt">Digite o nome do professor</div></div>';
+  input.focus();
+  window.scrollTo({top:0,behavior:'smooth'});
+};
+
+function renderProf(nm) {
+  const d = PROFS[nm]; if(!d) return;
+  document.getElementById('profAvatar').textContent = initials(nm);
+  document.getElementById('profNome').textContent = nm;
+  document.getElementById('profMeta').textContent = 'IFCE Campus '+(d.campus||'Canindé')+(semVigente?' · '+semVigente:'');
+
+  const grade = d.grade || {};
+  let aulaCount=0, extCount=0, attCount=0;
+  DIAS.forEach(dia => (grade[dia]||[]).forEach(b => {
+    const tp=b.tipo||b.tp||'aula';
+    if(tp==='aula')aulaCount++;
+    else if(tp==='aula_externa')extCount++;
+    else if(tp==='atendimento')attCount++;
+  }));
+
+  const total = aulaCount+extCount+attCount;
+  let stats = `<div class="stat stat-aula">${aulaCount+extCount}h aulas${extCount>0?` (${extCount} ext.)`:''}</div>`;
+  if(attCount>0) stats += `<div class="stat stat-att">${attCount}h atendimento</div>`;
+  stats += `<div class="stat" style="background:#f5f5f5;color:#333;font-weight:700">Total: ${total}h</div>`;
+  document.getElementById('profStats').innerHTML = stats;
+
+  // Tabela
+  let h = '<thead><tr><th></th>';
+  DIAS.forEach(dia => { h += `<th>${dia.substring(0,3)}</th>`; });
+  h += '</tr></thead><tbody>';
+
+  const att=[];
+
+  SLOTS.forEach(s => {
+    const [si,sf] = s.h.split('-');
+    h += `<tr><td class="slot-label">${s.l}</td>`;
+    DIAS.forEach(dia => {
+      const bs = grade[dia]||[];
+      const b = bs.find(x => (x.inicio||x.i)===si && (x.fim||x.f)===sf);
+      if(b){
+        const tp = b.tipo||b.tp||'aula';
+
+        // Opção B: mostrar apenas aulas e atendimento
+        if(tp!=='aula' && tp!=='aula_externa' && tp!=='atendimento'){
+          h += '<td></td>';
+          return;
+        }
+
+        const atv = b.atividade||b.a||'';
+
+        // Coleta atendimentos para lista
+        if(tp==='atendimento'){
+          const item='Atend. a alunos — '+dia+' '+si;
+          if(!att.includes(item)) att.push(item);
+        }
+
+        if(tp==='aula'||tp==='aula_externa'){
+          const ps = atv.split(' — ');
+          const sala = b.sala||b.s||'';
+          if(tp==='aula'){
+            h += `<td><div class="cell-aula" title="${esc(atv)}">
+              <span class="disc">${esc(ps[0])}</span>
+              <span class="turma">${esc(ps[1]||b.turma||b.t||'')}</span>
+              ${sala?`<span class="sala">🚪 ${esc(sala)}</span>`:''}
+            </div></td>`;
+          } else {
+            const lb = (atv||'Aula').substring(0,18);
+            h += `<td><div style="background:#0277BD;color:#fff;border-radius:4px;padding:3px 4px;font-size:8px;line-height:1.25;margin:1px;min-height:30px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:600" title="${esc(atv)}">${esc(lb)}</div></td>`;
+          }
+        } else if(tp==='atendimento'){
+          h += `<td><div class="cell-att"><span class="att-txt">Atend.</span><span class="att-sub">a alunos</span></div></td>`;
+        }
+      } else {
+        h += '<td></td>';
+      }
+    });
+    h += '</tr>';
+  });
+  h += '</tbody>';
+  document.getElementById('gradeTable').innerHTML = h;
+
+  // Lista de atividades — apenas ensino e atendimento
+  const discs = d.disciplinas||[];
+  let dl = '';
+
+  if(discs.length){
+    dl += '<div class="disc-section-title" style="color:var(--blue)">📚 Disciplinas</div>';
+    discs.forEach(disc => {
+      const nome=disc.nome||disc.n||'', turma=disc.turma||disc.t||'', ch=disc.ch||disc.c||0;
+      dl += `<div class="disc-item">
+        <span class="disc-nm">${esc(nome)}${turma&&turma!=='—'?`<span class="disc-tag">${esc(turma)}</span>`:''}
+        </span><span class="disc-ch" style="background:#dbeafe;color:#1d4ed8">${ch}h</span>
+      </div>`;
+    });
+  }
+
+  if(att.length){
+    dl += '<div class="disc-section-title" style="color:#15803d;margin-top:14px">👥 Atendimento a Alunos</div>';
+    att.forEach(a => {
+      dl += `<div class="disc-item"><span class="disc-nm">${esc(a)}</span><span class="disc-ch" style="background:#dcfce7;color:#15803d">1h</span></div>`;
+    });
+  }
+
+  if(!discs.length && !att.length){
+    dl += '<div style="font-size:12px;color:var(--txt3);text-align:center;padding:16px">Nenhuma atividade registrada</div>';
+  }
+
+  if(d.atualizado) {
+    dl += `<div class="atu">Atualizado: ${new Date(d.atualizado).toLocaleString('pt-BR')}</div>`;
+  }
+
+  document.getElementById('discList').innerHTML = dl;
+}
+
+// ═══════════════ TURMAS ═══════════════
+function renderFiltroCursos() {
+  const cursos = [...new Set(TURMAS.map(t=>t.curso).filter(Boolean))].sort();
+  const el = document.getElementById('filtroCursos');
+  el.innerHTML = `<button class="filtro-btn on" onclick="setCursoFiltro('TODOS')">Todos</button>` +
+    cursos.map(c => `<button class="filtro-btn" onclick="setCursoFiltro('${c}')">${c}</button>`).join('');
+}
+
+window.setCursoFiltro = function(c) {
+  cursoFiltro = c;
+  document.querySelectorAll('.filtro-btn').forEach(b => {
+    b.classList.toggle('on', b.textContent===c || (c==='TODOS'&&b.textContent==='Todos'));
+  });
+  filtrarTurmas();
+};
+
+window.filtrarTurmas = function() {
+  const q = remAc((document.getElementById('searchTurma').value||'').trim());
+  document.getElementById('btnClearTurma').style.display = q ? 'block' : 'none';
+  const filtradas = TURMAS.filter(t => {
+    if(cursoFiltro!=='TODOS' && t.curso!==cursoFiltro) return false;
+    if(!q) return true;
+    const texto = remAc(`${t.curso||''} ${t.semestre||''} ${t.turno||''} ${(t.aulas||[]).map(a=>a.disciplina||'').join(' ')}`);
+    return texto.includes(q);
+  });
+  renderTurmaGrid(filtradas);
+};
+
+window.limparBuscaTurma = function() {
+  document.getElementById('searchTurma').value='';
+  document.getElementById('btnClearTurma').style.display='none';
+  filtrarTurmas();
+};
+
+function renderTurmas() {
+  if(!TURMAS.length) {
+    document.getElementById('turmaGrid').innerHTML = '<div class="state"><div class="state-icon">📋</div><div class="state-txt">Nenhuma turma publicada</div><div class="state-sub">O painel de horários ainda não publicou a grade deste semestre</div></div>';
+    return;
+  }
+  filtrarTurmas();
+}
+
+function renderTurmaGrid(lista) {
+  const el = document.getElementById('turmaGrid');
+  if(!lista.length){
+    el.innerHTML='<div class="state"><div class="state-icon">🔍</div><div class="state-txt">Nenhuma turma encontrada</div></div>';
+    return;
+  }
+
+  el.innerHTML = lista.map((t,idx) => {
+    const c = t.curso||'';
+    const cor = COR_CURSO[c] || {bg:'#f3f3f3',tx:'#333'};
+    const nomeCurso = NOMES_CURSO[c]||c;
+    const aulas = (t.aulas||[]).slice().sort((a,b)=>{
+      const dOrdem=['Segunda','Terça','Quarta','Quinta','Sexta'];
+      const da=dOrdem.indexOf(a.dia), db=dOrdem.indexOf(b.dia);
+      if(da!==db) return da-db;
+      return (a.slot||'').localeCompare(b.slot||'');
+    });
+    const totalAulas = aulas.length;
+    const turno = t.turno ? ' · '+t.turno : '';
+
+    return `<div class="turma-card" id="tc-${idx}" onclick="toggleTurma(${idx})">
+      <div class="turma-hdr">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span class="turma-badge" style="background:${cor.bg};color:${cor.tx}">${c}</span>
+            <span class="turma-nome">${esc(t.semestre||'')}${esc(turno)}</span>
+          </div>
+          <div class="turma-meta">${esc(nomeCurso)} · ${totalAulas} aula${totalAulas!==1?'s':''}</div>
+        </div>
+        <span class="turma-chevron">›</span>
+      </div>
+      <div class="turma-body">
+        ${aulas.length ? aulas.map(a => `
+          <div class="turma-aula">
+            <div class="turma-slot">
+              ${esc(a.dia?a.dia.substring(0,3):'')}
+              <br>${esc(a.horario||a.slot||'')}
+            </div>
+            <div class="turma-disc">
+              <div class="turma-disc-nome">${esc(a.disciplina||'')}</div>
+              <div class="turma-disc-prof">👤 ${esc(a.professor||'A definir')}</div>
+              ${a.sala?`<div class="turma-disc-sala">🚪 ${esc(a.sala)}</div>`:''}
+            </div>
+          </div>`).join('') : '<div style="font-size:12px;color:var(--txt3);text-align:center;padding:12px">Nenhuma aula alocada</div>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.toggleTurma = function(idx) {
+  const card = document.getElementById('tc-'+idx);
+  card.classList.toggle('open');
+};
+
+// ── Link direto via hash ──
+if(window.location.hash){
+  const nm = decodeURIComponent(window.location.hash.substring(1));
+  setTimeout(() => { if(PROFS[nm]) showProf(nm); }, 1800);
+}
+
+// ── Inicia ──
+init();
+</script>
+</body>
+</html>
