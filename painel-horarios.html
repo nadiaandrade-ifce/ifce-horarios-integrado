@@ -832,74 +832,226 @@ function sanitize(n){return n.replace(/[\/\.#$\[\]]/g,'_');}
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
 
 async function processXLSX(file){
-  const nm=file.name.toLowerCase();
-  if(!nm.endsWith('.xlsx')&&!nm.endsWith('.xls')&&!nm.endsWith('.csv'))return alert('Selecione .xlsx, .xls ou .csv');
-  const sem=document.getElementById('uploadSem').value;
-  if(!sem)return alert('Selecione um semestre de destino.');
-  const log=document.getElementById('importLog');
-  log.style.display='block'; log.textContent='📂 Abrindo: '+file.name+'\n';
+  const nm = file.name.toLowerCase();
+  if(!nm.endsWith('.xlsx')&&!nm.endsWith('.xls'))return alert('Selecione um arquivo .xlsx ou .xls');
+  const sem = document.getElementById('uploadSem').value;
+  if(!sem) return alert('Selecione o semestre de destino.');
+
+  const log = document.getElementById('importLog');
+  log.style.display='block';
+  log.textContent = '📂 Lendo: '+file.name+'\n';
+
   try{
-    let rows;
-    if(nm.endsWith('.csv')){
-      let text=await file.text();
-      if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
-      const fl=text.split(/\r?\n/)[0]||'';
-      const sep=(fl.match(/;/g)||[]).length>=(fl.match(/,/g)||[]).length?';':',';
-      rows=parseCSV(text,sep).filter(r=>r.some(c=>String(c||'').trim()!==''));
-    } else {
-      if(!window.XLSX){log.textContent+='⏳ Carregando SheetJS…\n';await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');log.textContent+='✅ SheetJS carregado\n';}
-      const ab=await file.arrayBuffer();
-      const wb=XLSX.read(ab,{type:'array'});
-      rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:false});
-      const r0=(rows[0]&&rows[0][0])||'';
-      if(typeof r0==='string'&&r0.includes(';')&&r0.includes('Professor')){
-        rows=rows.map(r=>{const s=String(r[0]||'').replace(/\[span_\d+\]\(start_span\)/g,'').replace(/\[span_\d+\]\(end_span\)/g,'');return s.split(';');});
+    if(!window.XLSX){
+      log.textContent += '⏳ Carregando SheetJS…\n';
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+      log.textContent += '✅ SheetJS carregado\n';
+    }
+
+    const ab  = await file.arrayBuffer();
+    const wb  = XLSX.read(ab, {type:'array'});
+    log.textContent += '📋 Abas encontradas: '+wb.SheetNames.join(', ')+'\n';
+
+    // Mapa: sigla da aba → código do curso
+    const CURSO_MAP = {
+      'TURISMO':'TUR','REDES':'RED','INFORMÁTICA':'INF','MÚSICA':'MUS',
+      'ADS':'ADS','MATEMÁTICA':'MAT','PEDAGOGIA':'PED','CLEF':'CLEF',
+      'ELETRÔNICA':'ELE','EXTRACURRICULAR':'EXT','EVENTOS':'EVT',
+      'CENTRO DE IDIOMA':'EXT'
+    };
+
+    // Detecta turno a partir de texto
+    function detectTurno(txt){
+      const t = txt.toUpperCase();
+      if(/NOTUR|NOITE/.test(t)) return 'Noite';
+      if(/TARDE/.test(t))       return 'Tarde';
+      if(/MANHã|MANHA|MANHÃ/.test(t)) return 'Manhã';
+      if(/INTEGRAL/.test(t))    return 'Integral';
+      return '';
+    }
+
+    // Detecta semestre a partir de texto  ex: "SEMESTRE 2", "S4", "A1"
+    function detectSem(txt){
+      let m;
+      m = txt.match(/SEMESTRE\s+(\d+)/i);   if(m) return 'S'+m[1];
+      m = txt.match(/\bS(\d+)\b/i);          if(m) return 'S'+m[1];
+      m = txt.match(/\bA(\d+)\b/i);          if(m) return 'A'+m[1];
+      return '';
+    }
+
+    // Detecta curso a partir do nome da aba
+    function detectCurso(sheetName){
+      const upper = sheetName.toUpperCase().trim();
+      for(const [key, val] of Object.entries(CURSO_MAP)){
+        if(upper.includes(key)) return val;
       }
+      return 'GEN';
     }
-    if(rows.length<2)throw new Error('Planilha vazia.');
-    const header=rows[0].map(c=>String(c||'').trim().toLowerCase());
-    function fc(ns){for(const n of ns){const i=header.findIndex(h=>h.includes(n));if(i>=0)return i;}return -1;}
-    let colProf=fc(['professor','docente']),colHora=fc(['horário','horario','slot']);
-    let colSeg=fc(['segunda']),colTer=fc(['terça','terca']),colQua=fc(['quarta']),colQui=fc(['quinta']),colSex=fc(['sexta']);
-    const semCab=(colProf<0||colHora<0)&&header.length>=7&&/^seg/i.test(header[2]||'')&&/^ter/i.test(header[3]||'')&&/^qua/i.test(header[4]||'')&&/^qui/i.test(header[5]||'')&&/^sex/i.test(header[6]||'');
-    if(semCab){colProf=0;colHora=1;colSeg=2;colTer=3;colQua=4;colQui=5;colSex=6;}
-    if(colProf<0||colHora<0)throw new Error('Cabeçalho sem "Professor" e "Horário".');
-    const colDias=[colSeg,colTer,colQua,colQui,colSex];
-    if(colDias.some(c=>c<0))throw new Error('Cabeçalho sem todos os dias úteis.');
-    rows=rows.filter((r,idx)=>{if(idx===0&&!semCab)return true;const sv=String(r[colHora]||'').trim(),d0=String(r[colSeg]||'').trim();if(!sv&&/^Seg$/i.test(d0))return false;return true;});
-    log.textContent+=`📊 ${rows.length-1} linhas a processar…\n`;
-    const profsMap={};let lp=0,li=0;
-    function ehSlotUnico(){let v=0,t=0;for(let r=semCab?0:1;r<Math.min(rows.length,30);r++){const h=String(rows[r][colHora]||'').trim();if(!h)continue;t++;if(/^[ABCD]\s+(Manh[aã]|Tarde|Noite)\s+\d/.test(h))v++;}return t>0&&v/t>0.5;}
-    if(ehSlotUnico()){
-      log.textContent+='ℹ️ Formato: slot único por linha\n';
-      function slLP(s){const m=String(s||'').match(/^([ABCD])\s+(Manh[aã]|Tarde|Noite)(?:\s|$)/);if(!m)return null;return{letra:m[1],periodo:m[2].replace('ã','a')};}
-      function slT(s){const m=String(s||'').match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);if(!m)return null;function pad(t){const[h,mn]=t.split(':');return String(h).padStart(2,'0')+':'+mn;}return[pad(m[1]),pad(m[2])];}
-      const raw={};
-      for(let r=semCab?0:1;r<rows.length;r++){const row=rows[r];const nome=String(row[colProf]||'').trim();const slot=String(row[colHora]||'').trim();if(!nome||!slot){li++;continue;}const sLP=slLP(slot);const sT=slT(slot);if(!sLP||!sT){li++;continue;}if(!raw[nome])raw[nome]={slots:{}};const k=sLP.letra+'|'+sLP.periodo;raw[nome].slots[k]={times:sT,dias:colDias.map(c=>String(row[c]||'').trim())};lp++;}
-      const PARES=[['A','B'],['C','D']],PER=['Manha','Tarde','Noite'];
-      for(const nome of Object.keys(raw)){const slots=raw[nome].slots;for(const per of PER){for(const[p1,p2]of PARES){const k1=p1+'|'+per,k2=p2+'|'+per;if(!slots[k1]||!slots[k2])continue;for(let di=0;di<5;di++){if(slots[k1].dias[di]&&!slots[k2].dias[di])slots[k2].dias[di]=slots[k1].dias[di];}}}}
-      for(const nome of Object.keys(raw)){if(!profsMap[nome])profsMap[nome]={grade:{Segunda:[],Terça:[],Quarta:[],Quinta:[],Sexta:[]},disc:{},total:0};const p=profsMap[nome];for(const slotKey of Object.keys(raw[nome].slots)){const sd=raw[nome].slots[slotKey];const[si,sf]=sd.times;for(let di=0;di<5;di++){const cel=sd.dias[di];if(!cel)continue;const aulas=parseCelulaSlotUnico(cel);const dia=DIAS_PLANILHA[di];for(const a of aulas){p.grade[dia].push({inicio:si,fim:sf,atividade:a.disc+' — '+a.turma,tipo:'aula',turma:a.turma});p.total++;const k=a.disc+'|'+a.turma;if(!p.disc[k])p.disc[k]={nome:a.disc,turma:a.turma,ch:0};p.disc[k].ch++;}}}}
-    } else {
-      for(let r=semCab?0:1;r<rows.length;r++){const row=rows[r];const nome=String(row[colProf]||'').trim();const hora=String(row[colHora]||'').trim();if(!nome||!hora){li++;continue;}const sr=parseHorarioRange(hora);if(!sr.length){li++;continue;}if(!profsMap[nome])profsMap[nome]={grade:{Segunda:[],Terça:[],Quarta:[],Quinta:[],Sexta:[]},disc:{},total:0};const p=profsMap[nome];for(let di=0;di<5;di++){const cel=String(row[colDias[di]]||'').trim();if(!cel)continue;const aulas=parseCelula(cel);const dia=DIAS_PLANILHA[di];for(const a of aulas){for(const[si,sf]of sr){const ativ=a.disc+' — '+a.turma;p.grade[dia].push({inicio:si,fim:sf,atividade:ativ,tipo:'aula',turma:a.turma});p.total++;const key=a.disc+'|'+a.turma;if(!p.disc[key])p.disc[key]={nome:a.disc,turma:a.turma,ch:0};p.disc[key].ch++;}}}lp++;}
+
+    // Normaliza carga horária — pode vir como "80h", "80", 80, "2"
+    function normCH(v){
+      if(!v && v!==0) return 2;
+      const n = parseInt(String(v).replace(/[^\d]/g,''));
+      if(isNaN(n)||n<=0) return 2;
+      // Planilha usa horas totais (80h = 4 créditos semanais = 4h na grade)
+      // ou créditos diretos (2, 4)
+      if(n >= 40) return Math.round(n/20); // 40h→2, 80h→4, 100h→5
+      return n; // já é crédito semanal
     }
-    const profs=Object.entries(profsMap).map(([nome,p])=>({nome,grade:p.grade,disciplinas:Object.values(p.disc),total_aulas:p.total}));
-    log.textContent+=`✅ ${lp} linhas · ${profs.length} docentes\n`;
-    if(!profs.length)throw new Error('Nenhum professor extraído.');
-    log.textContent+=`⏳ Salvando (semestre: ${sem})…\n`;
-    const bsz=400;
-    for(let i=0;i<profs.length;i+=bsz){
-      const batch=_writeBatch(_db);
-      profs.slice(i,i+bsz).forEach(prof=>{
-        const ref=_doc(_db,'horarios',sem+'_'+sanitize(prof.nome));
-        batch.set(ref,{nome:prof.nome,semestre:sem,campus:'Canindé',grade:prof.grade,disciplinas:prof.disciplinas,total_aulas:prof.total_aulas,atualizado:new Date().toISOString(),fonte:'xlsx_import'});
-      });
-      await batch.commit();
+
+    // Verifica se uma linha é cabeçalho de semestre/turno
+    function isSemHeader(cells){
+      const txt = cells.filter(Boolean).join(' ').toUpperCase();
+      return /SEMESTRE|TURNO|TURNO\s+[A-Z]/.test(txt) && txt.length < 120;
     }
-    log.textContent+=`✅ ${profs.length} docentes importados para ${sem}\n`;
-    toast(profs.length+' docentes importados para '+sem);
-    await loadPublishedStats();
-  }catch(e){ log.textContent+='❌ ERRO: '+e.message+'\n'; console.error(e); }
+
+    // Verifica se é linha de disciplina válida
+    // Deve ter: código OU nome de disciplina + professor
+    function isDiscLine(cells, colCod, colNome, colProf){
+      const cod  = String(cells[colCod]||'').trim();
+      const nome = String(cells[colNome]||'').trim();
+      const prof = String(cells[colProf]||'').trim();
+      if(!nome || nome.length < 3) return false;
+      if(/^(CÓDIGO|CÓDIGOS|DISCIPLINAS|PROFESSOR|CARGA|C\.H|TOTAL|OFERTA|SEMESTRE|TURNO|CURSO|CRÉDITO)/i.test(nome)) return false;
+      if(/^(SEMESTRE|TURNO|CURSO|EXTRACURRICULAR)/i.test(nome) && !prof) return false;
+      return true;
+    }
+
+    const discsPorCurso = {};
+    let totalDiscs = 0;
+
+    for(const sheetName of wb.SheetNames){
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', raw:false});
+      const curso = detectCurso(sheetName);
+
+      if(!discsPorCurso[curso]) discsPorCurso[curso] = [];
+
+      let semAtual  = '';
+      let turnoAtual = '';
+
+      // Detectar colunas dinamicamente pela linha de cabeçalho
+      let colCod=-1, colNome=-1, colProf=-1, colCH=-1;
+
+      for(let r=0; r<rows.length; r++){
+        const cells = rows[r].map(c=>String(c||'').trim());
+        const joined = cells.join('\t').toUpperCase();
+
+        // Detectar linha de cabeçalho de colunas
+        if(/DISCIPLINAS OFERTADAS|DISCIPLINA OFERTADA/.test(joined)){
+          colNome = cells.findIndex(c=>/DISCIPLINAS OFERTADAS|DISCIPLINA/i.test(c));
+          colCod  = cells.findIndex(c=>/CÓDIGO|CODIGOS|^COD/i.test(c));
+          colProf = cells.findIndex(c=>/PROFESSOR/i.test(c));
+          colCH   = cells.findIndex(c=>/CARGA|C\.H|CH|CRÉDITO/i.test(c));
+          // Se não achou cod na mesma linha, assume coluna 0
+          if(colCod < 0) colCod = 0;
+          if(colNome < 0) colNome = 1;
+          if(colProf < 0) colProf = cells.length > 3 ? 3 : 2;
+          if(colCH < 0)   colCH   = cells.length > 4 ? 4 : -1;
+          continue;
+        }
+
+        // Detectar linha de semestre/turno
+        if(isSemHeader(cells)){
+          const txt = cells.filter(Boolean).join(' ');
+          const s = detectSem(txt);
+          const t = detectTurno(txt);
+          if(s) semAtual   = s;
+          if(t) turnoAtual = t;
+          continue;
+        }
+
+        // Tentar detectar semestre inline se colunas ainda não definidas
+        if(colNome < 0){
+          const txt = cells.filter(Boolean).join(' ');
+          const s = detectSem(txt); const t = detectTurno(txt);
+          if(s) semAtual=s; if(t) turnoAtual=t;
+          // Tentar definir colunas padrão
+          colCod=0; colNome=1; colProf=3; colCH=4;
+        }
+
+        // Verificar se é linha de disciplina
+        if(!isDiscLine(cells, colCod, colNome, colProf)) continue;
+
+        const codigo = String(cells[colCod]||'').trim().replace(/^[^\d]*/, '');
+        const nome   = String(cells[colNome]||'').trim();
+        const prof   = String(cells[colProf]||'').trim() || 'A definir';
+        const chRaw  = colCH >= 0 ? cells[colCH] : '';
+        const ch     = normCH(chRaw);
+
+        // Ignorar linhas de total, pendências etc
+        if(/^(total|oferta de disciplinas com pend|extracurricular)$/i.test(nome)) continue;
+
+        // Ignorar se semestre não detectado ainda
+        if(!semAtual) continue;
+
+        const id = curso + '_' + (codigo || nome.substring(0,8).replace(/\s+/g,'_')) + '_' + semAtual;
+
+        discsPorCurso[curso].push({
+          id, curso, semestre: semAtual, turno: turnoAtual,
+          codigo: codigo || '', nome, professor: prof, ch
+        });
+        totalDiscs++;
+      }
+
+      log.textContent += `  ${sheetName} → ${curso}: ${discsPorCurso[curso].length} disciplinas\n`;
+    }
+
+    log.textContent += `\n📊 Total: ${totalDiscs} disciplinas em ${Object.keys(discsPorCurso).length} cursos\n`;
+
+    if(!totalDiscs){
+      log.textContent += '❌ Nenhuma disciplina extraída. Verifique o formato da planilha.\n';
+      return;
+    }
+
+    // Salvar no Firestore: coleção "catalogo_disciplinas/{sem}"
+    log.textContent += `⏳ Salvando catálogo no Firestore (semestre: ${sem})…\n`;
+
+    const payload = {
+      semestre: sem,
+      cursos: discsPorCurso,
+      disciplinas: Object.values(discsPorCurso).flat(),
+      total: totalDiscs,
+      atualizado: new Date().toISOString(),
+      fonte: 'planilha_lotacao'
+    };
+
+    await _setDoc(_doc(_db,'catalogo_disciplinas', sem), payload);
+    log.textContent += `✅ Catálogo salvo em catalogo_disciplinas/${sem}\n`;
+
+    // Atualizar DISC em memória para uso imediato pela comissão
+    const novasDiscs = payload.disciplinas;
+    DISC.length = 0;
+    novasDiscs.forEach(d => DISC.push(d));
+
+    // Atualizar seletores de curso e turma
+    const sc = document.getElementById('sel-c');
+    sc.innerHTML = '';
+    getCursos().forEach(c=>{
+      const o=document.createElement('option');
+      o.value=c; o.textContent=`${c} — ${NOMES[c]||c}`;
+      sc.appendChild(o);
+    });
+    cursoAt = getCursos()[0]||''; sc.value=cursoAt;
+    const ss=document.getElementById('sel-t'); ss.innerHTML='';
+    getTurmas(cursoAt).forEach(t=>{
+      const o=document.createElement('option');
+      o.value=t.val; o.textContent=t.sem+(t.turno?' — '+t.turno:'');
+      ss.appendChild(o);
+    });
+    turmaAt=ss.value||'';
+
+    log.textContent += `\n🎉 Catálogo atualizado! A comissão já pode montar os horários.\n`;
+    log.textContent += `Cursos disponíveis: ${getCursos().join(', ')}\n`;
+    toast(`✅ ${totalDiscs} disciplinas importadas para ${sem}`);
+    await _loadPublishedStats();
+
+  }catch(e){
+    log.textContent += '❌ ERRO: '+e.message+'\n';
+    console.error(e);
+  }
 }
+
 
 </script>
 
