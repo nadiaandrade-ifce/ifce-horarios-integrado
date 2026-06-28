@@ -311,11 +311,16 @@ select:focus{outline:none;border-color:#2e7d32}
       </div>
       <div class="salas-main">
         <div class="salas-head">
-          <div>
+          <div style="flex:1">
             <div id="sala-tit" style="font-size:17px;font-weight:800;color:var(--txt)">Selecione uma sala</div>
-            <div id="sala-sub" style="font-size:11px;color:var(--txt2);margin-top:2px">Clique em uma sala à esquerda</div>
+            <div id="sala-sub" style="font-size:11px;color:var(--txt2);margin-top:2px">Depois escolha o curso e turma para alocar</div>
           </div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <label style="font-size:11px;font-weight:600;color:var(--txt2)">Curso</label>
+            <select id="sala-sel-c" onchange="onSalaCurso()" style="height:30px;font-size:12px;padding:0 6px"></select>
+            <label style="font-size:11px;font-weight:600;color:var(--txt2)">Turma</label>
+            <select id="sala-sel-t" onchange="onSalaTurma()" style="height:30px;font-size:12px;padding:0 6px"></select>
+            <button class="btn btn-p btn-sm" onclick="alocarTurmaInteira()" title="Aloca todas as aulas desta turma nesta sala">📌 Alocar turma</button>
             <button class="btn btn-sm btn-d" id="btn-limpar-sala" style="display:none" onclick="limparSala()">🗑 Limpar sala</button>
           </div>
         </div>
@@ -1005,7 +1010,7 @@ const TURNO_ICON={Manhã:'☀️',Tarde:'🌤',Noite:'🌙'};
 const COR={TUR:{bg:'#e8f8f0',bd:'#4caf50',tx:'#1b5e20',cd:'#c8e6c9'},RED:{bg:'#e8f0fb',bd:'#4a86c8',tx:'#1a237e',cd:'#c5cae9'},INF:{bg:'#f3e5f5',bd:'#9c27b0',tx:'#4a148c',cd:'#e1bee7'},ADS:{bg:'#e3f2fd',bd:'#1976d2',tx:'#0d47a1',cd:'#bbdefb'},MAT:{bg:'#fff8e1',bd:'#f9a825',tx:'#e65100',cd:'#ffe082'},PED:{bg:'#fce4ec',bd:'#e91e63',tx:'#880e4f',cd:'#f8bbd0'},CLEF:{bg:'#e0f7fa',bd:'#00acc1',tx:'#006064',cd:'#b2ebf2'},MUS:{bg:'#ede7f6',bd:'#7b1fa2',tx:'#4a148c',cd:'#d1c4e9'},ELE:{bg:'#fbe9e7',bd:'#e64a19',tx:'#bf360c',cd:'#ffccbc'},EVT:{bg:'#f9fbe7',bd:'#7cb342',tx:'#33691e',cd:'#dcedc8'},EXT:{bg:'#f3f3f3',bd:'#757575',tx:'#212121',cd:'#e0e0e0'}};
 
 const grade={},salaDe={},profOverride={},codOverride={},nomeOverride={};
-let cursoAt='',turmaAt='',mSlot=null,selDisc=null,abaAtual='grade',salaAtual=null,pSala=null;
+let cursoAt='',turmaAt='',mSlot=null,selDisc=null,abaAtual='grade',salaAtual=null,pSala=null,salaCursoAt='',salaTurmaAt='';
 const aulaKey=(c,t,d,s)=>c+'|'+t+'|'+d+'|'+s;
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const TODAS_SALAS=["BLOCO 1 – SALA DE AULA 1","BLOCO 1 – SALA DE AULA 2","BLOCO 1 – SALA DE AULA 3","BLOCO 1 – SALA DE AULA 4","BLOCO 1 – SALA DE AULA 5","BLOCO 2 – SALA DE AULA 1","BLOCO 2 – SALA DE AULA 2","BLOCO 2 – SALA DE AULA 3","BLOCO 2 – SALA DE AULA 4","BLOCO 3 – SALA DE AULA 3","BLOCO 3 – SALA DE AULA 4","BLOCO 3 – SALA DE AULA 5","BLOCO 3 – SALA DE AULA 6","BLOCO 3 – SALA DE AULA 7","BLOCO 3 – SALA DE AULA 8","BLOCO 3 – SALA DE AULA 9","LAB. DESENVOLVIMENTO DE SISTEMAS – BLOCO 3","LABORATÓRIO DE TURISMO – BLOCO 3","LABORATÓRIO DE MATEMÁTICA – BLOCO 3","LABORATÓRIO BRINQUEDOTECA – BLOCO 2","SALA DE VIDEOCONFERÊNCIA","LABORATÓRIO DE REDES","LABORATÓRIO DE PERFORMANCE MUSICAL","LABORATÓRIO DE MÚSICA E INFORMÁTICA","LABORATÓRIO DE ELETRÔNICA"];
@@ -1038,7 +1043,7 @@ function setAba(a){
   });
   if(a==='grade'){renderStats();renderGrid();}
   else if(a==='prof')renderProfView();
-  else if(a==='salas'){renderSalaList();renderSalaGrade();}
+  else if(a==='salas'){renderSalaList();renderSalaGrade();popularSalaSeletores();}
   else if(a==='publicar')atualizarResumoPublicacao();
   persist();
 }
@@ -1060,7 +1065,82 @@ function profsAlocados(){const set=new Set();getAllAulas().forEach(a=>{const p=p
 
 function renderSalaList(){const q=(document.getElementById('busca-sala').value||'').toLowerCase();const cont={};let tot=0;getAllAulas().forEach(a=>{const s=salaDe[a.key];if(s){cont[s]=(cont[s]||0)+1;tot++;}});document.getElementById('salas-info').textContent=`${TODAS_SALAS.length} salas · ${tot} aula(s) alocada(s)`;const itens=TODAS_SALAS.map((s,i)=>({s,i})).filter(o=>o.s.toLowerCase().includes(q));document.getElementById('salas-list').innerHTML=itens.map(o=>`<button class="rb${o.s===salaAtual?' on':''}" onclick="selSala(${o.i})"><span>${esc(o.s)}</span><span class="rbn">${cont[o.s]||0}</span></button>`).join('')||'<div class="emsg">Nenhuma sala.</div>';}
 function selSala(ref){salaAtual=(typeof ref==='number')?TODAS_SALAS[ref]:ref;document.getElementById('sala-tit').textContent=salaAtual;document.getElementById('sala-sub').textContent='Clique no + de um horário para alocar uma aula.';document.getElementById('btn-limpar-sala').style.display='inline-flex';renderSalaList();renderSalaGrade();}
-function renderSalaGrade(){const stEl=document.getElementById('sala-stats'),grEl=document.getElementById('sala-grade');if(!salaAtual){stEl.innerHTML='';grEl.innerHTML='<div class="emsg" style="padding:30px">Selecione uma sala à esquerda.</div>';return;}const here={};getAllAulas().forEach(a=>{if(salaDe[a.key]===salaAtual){(here[a.dia+'|'+a.sid]=here[a.dia+'|'+a.sid]||[]).push(a);}});const cont={Manhã:0,Tarde:0,Noite:0};TURNOS.forEach(tn=>tn.slots.forEach(slot=>DIAS.forEach(dia=>{if((here[dia+'|'+slot.id]||[]).length)cont[tn.nome]++;})));stEl.innerHTML=TURNOS.map(tn=>`<div class="ocp">${TURNO_ICON[tn.nome]} ${tn.nome}: <strong>${cont[tn.nome]}/20</strong></div>`).join('');grEl.innerHTML=weekGrid((dia,slot)=>{const arr=here[dia+'|'+slot.id]||[];if(!arr.length)return null;const conf=arr.length>1;return arr.map(a=>{const d=DISC.find(x=>x.id===a.discId),col=COR[a.curso]||COR.EXT;const{sem,turno}=parseTurma(a.turma);return`<div class="sc-card" style="background:${col.bg};border:1.5px solid ${conf?'#e53935':col.bd}" onclick="removerSalaDeAula('${a.key.replace(/'/g,"\\'")}')" title="Clique para remover desta sala">${conf?'<div class="cf-dot" title="Conflito"></div>':''}<div class="sc-code" style="color:${col.tx}">${esc(a.curso)} ${esc(sem)}</div><div class="sc-name" style="color:${col.tx}">${esc(d?d.nome:'')}</div><div class="sc-prof" style="color:${col.tx}">👤 ${esc(profDe(a.curso,a.turma,a.dia,a.sid,a.discId)||'—')}</div></div>`;}).join('');},null);}
+function renderSalaGrade(){
+  const stEl=document.getElementById('sala-stats'),grEl=document.getElementById('sala-grade');
+  if(!salaAtual){stEl.innerHTML='';grEl.innerHTML='<div class="emsg" style="padding:30px">Selecione uma sala à esquerda.</div>';return;}
+
+  // Aulas JÁ alocadas NESTA sala
+  const here={};
+  getAllAulas().forEach(a=>{if(salaDe[a.key]===salaAtual)(here[a.dia+'|'+a.sid]=here[a.dia+'|'+a.sid]||[]).push(a);});
+
+  // Todos os slots da turma selecionada que AINDA NÃO têm sala nenhuma
+  // (já alocados nesta sala somem da lista — ficam como card fixo na grade)
+  const turmaAulas={};
+  if(salaCursoAt&&salaTurmaAt){
+    getAllAulas()
+      .filter(a=>a.curso===salaCursoAt&&a.turma===salaTurmaAt&&!salaDe[a.key])
+      .forEach(a=>{turmaAulas[a.dia+'|'+a.sid]=a;});
+  }
+
+  // Contador de ocupação
+  const cont={Manhã:0,Tarde:0,Noite:0};
+  TURNOS.forEach(tn=>tn.slots.forEach(slot=>DIAS.forEach(dia=>{if((here[dia+'|'+slot.id]||[]).length)cont[tn.nome]++;})));
+
+  // Quantos slots da turma ainda faltam alocar
+  const totalTurma = salaCursoAt&&salaTurmaAt
+    ? getAllAulas().filter(a=>a.curso===salaCursoAt&&a.turma===salaTurmaAt).length : 0;
+  const alocadosNaSala = salaCursoAt&&salaTurmaAt
+    ? getAllAulas().filter(a=>a.curso===salaCursoAt&&a.turma===salaTurmaAt&&salaDe[a.key]===salaAtual).length : 0;
+  const alocadosOutra = salaCursoAt&&salaTurmaAt
+    ? getAllAulas().filter(a=>a.curso===salaCursoAt&&a.turma===salaTurmaAt&&salaDe[a.key]&&salaDe[a.key]!==salaAtual).length : 0;
+  const pendentes = totalTurma - alocadosNaSala - alocadosOutra;
+
+  let statsExtra='';
+  if(salaCursoAt&&salaTurmaAt){
+    const col=COR[salaCursoAt]||COR.EXT;
+    statsExtra=`<div class="ocp" style="background:${col.bg};border-color:${col.bd};color:${col.tx}">
+      <strong>${salaCursoAt} ${parseTurma(salaTurmaAt).sem}</strong>:
+      ${alocadosNaSala} aqui · ${alocadosOutra>0?alocadosOutra+' em outra sala · ':''}
+      <span style="color:${pendentes>0?'#e65100':'#2e7d32'};font-weight:700">${pendentes} pendente${pendentes!==1?'s':''}</span>
+    </div>`;
+  }
+
+  stEl.innerHTML=TURNOS.map(tn=>`<div class="ocp">${TURNO_ICON[tn.nome]} ${tn.nome}: <strong>${cont[tn.nome]}/20</strong></div>`).join('')+statsExtra;
+
+  grEl.innerHTML=weekGrid((dia,slot)=>{
+    const arr=here[dia+'|'+slot.id]||[];
+    const turmaAula=turmaAulas[dia+'|'+slot.id];
+
+    if(!arr.length){
+      // Slot vazio mas turma tem aula aqui sem sala → botão colorido com nome
+      if(turmaAula){
+        const d=DISC.find(x=>x.id===turmaAula.discId)||{};
+        const col=COR[salaCursoAt]||COR.EXT;
+        const nomeCurto=(nomeOverride[turmaAula.key]||d.nome||'').substring(0,22);
+        return`<button class="sb-btn" style="border:2px solid ${col.bd};color:${col.tx};background:${col.bg};font-size:9px;font-weight:700;padding:4px;min-height:54px;white-space:normal;line-height:1.3" onclick="alocarSlotNaSala('${turmaAula.key.replace(/'/g,"\'")}') " title="Clique para alocar: ${esc(d.nome||'')}">${esc(nomeCurto)}</button>`;
+      }
+      // Slot vazio sem turma selecionada ou turma sem aula aqui
+      return null;
+    }
+
+    // Slot com aula já alocada nesta sala → card clicável para remover
+    const conf=arr.length>1;
+    return arr.map(a=>{
+      const d=DISC.find(x=>x.id===a.discId)||{};
+      const col=COR[a.curso]||COR.EXT;
+      const{sem,turno}=parseTurma(a.turma);
+      // Se é da turma selecionada, destaca com borda mais grossa
+      const daTurma=a.curso===salaCursoAt&&a.turma===salaTurmaAt;
+      const bordaStyle=daTurma?`border:2.5px solid ${col.bd}`:`border:1.5px solid ${conf?'#e53935':col.bd}`;
+      return`<div class="sc-card" style="background:${col.bg};${bordaStyle}" onclick="removerSalaDeAula('${a.key.replace(/'/g,"\'")}') " title="Clique para remover desta sala">
+        ${conf?'<div class="cf-dot" title="Conflito"></div>':''}
+        <div class="sc-code" style="color:${col.tx}">${esc(a.curso)} ${esc(sem)}</div>
+        <div class="sc-name" style="color:${col.tx}">${esc(nomeOverride[a.key]||d.nome||'')}</div>
+        <div class="sc-prof" style="color:${col.tx}">👤 ${esc(profDe(a.curso,a.turma,a.dia,a.sid,a.discId)||'—')}</div>
+      </div>`;
+    }).join('');
+  },null);
+}
 
 function openSalaM(dia,sid){if(!salaAtual){toast('⚠️ Selecione uma sala primeiro');return;}pSala={dia,sid};document.getElementById('ovs-title').textContent='Alocar na '+salaAtual;document.getElementById('ovs-sub').textContent=`${dia} — ${getSlotObj(sid)?.l}`;document.getElementById('ovs-q').value='';document.getElementById('ovs').style.display='flex';renderDLSala();}
 function renderDLSala(){const q=(document.getElementById('ovs-q').value||'').toLowerCase();const{dia,sid}=pSala;let cand=getAllAulas().filter(a=>a.dia===dia&&a.sid===sid).map(a=>({...a,d:DISC.find(x=>x.id===a.discId)})).filter(a=>a.d);cand=cand.filter(a=>{const{sem,turno}=parseTurma(a.turma);return(a.d.nome+a.d.codigo+a.d.professor+a.curso+sem+turno).toLowerCase().includes(q);});
@@ -1068,6 +1148,50 @@ function renderDLSala(){const q=(document.getElementById('ovs-q').value||'').toL
 cand=cand.filter(a=>salaDe[a.key]!==salaAtual);if(!cand.length){document.getElementById('ovs-dl').innerHTML='<div class="emsg">Nenhuma aula neste horário. Aloque na aba "Por turma" primeiro.</div>';return;}document.getElementById('ovs-dl').innerHTML=cand.map(a=>{const c=COR[a.curso]||COR.EXT,{sem,turno}=parseTurma(a.turma);const sAtual=salaDe[a.key];const tag=sAtual===salaAtual?'<span class="pb pok">já nesta sala</span>':sAtual?`<span class="pb pwarn">em ${esc(sAtual)}</span>`:'<span class="pb pfull">sem sala</span>';return`<div class="di" onclick="atribuirSala('${a.key.replace(/'/g,"\\'")}')"><div class="dih"><div class="din">${esc(a.d.nome)}</div><span class="dic" style="background:${c.cd};color:${c.tx}">${esc(a.curso)} ${esc(sem)}${turno?' '+esc(turno):''}</span></div><div class="dim"><span class="dm">👤 ${esc(a.d.professor)}</span>${tag}</div></div>`;}).join('');}
 function atribuirSala(key){salaDe[key]=salaAtual;document.getElementById('ovs').style.display='none';toast('🚪 Aula alocada na sala');persist();renderSalaList();renderSalaGrade();}
 function removerSalaDeAula(key){delete salaDe[key];toast('Sala removida');persist();renderSalaList();renderSalaGrade();}
+function popularSalaSeletores(){
+  const sc=document.getElementById('sala-sel-c');
+  if(!sc)return;
+  const cursos=getCursos();
+  sc.innerHTML=cursos.map(c=>`<option value="${c}">${c} — ${NOMES[c]||c}</option>`).join('');
+  salaCursoAt=sc.value||'';
+  popularSalaTurmas();
+}
+
+function popularSalaTurmas(){
+  const sc=document.getElementById('sala-sel-c');
+  const st=document.getElementById('sala-sel-t');
+  if(!sc||!st)return;
+  salaCursoAt=sc.value||'';
+  const turmas=getTurmas(salaCursoAt);
+  st.innerHTML=turmas.map(t=>`<option value="${t.val}">${t.sem}${t.turno?' — '+t.turno:''}</option>`).join('');
+  salaTurmaAt=st.value||'';
+  renderSalaGrade();
+}
+
+function onSalaCurso(){popularSalaTurmas();}
+function onSalaTurma(){salaTurmaAt=document.getElementById('sala-sel-t').value||'';renderSalaGrade();}
+
+function alocarSlotNaSala(key){
+  if(!salaAtual){toast('⚠️ Selecione uma sala primeiro');return;}
+  salaDe[key]=salaAtual;
+  toast('🚪 Aula alocada na sala');
+  persist();renderSalaList();renderSalaGrade();
+}
+
+function alocarTurmaInteira(){
+  if(!salaAtual){toast('⚠️ Selecione uma sala primeiro');return;}
+  if(!salaCursoAt||!salaTurmaAt){toast('⚠️ Selecione curso e turma');return;}
+  const aulas=getAllAulas().filter(a=>a.curso===salaCursoAt&&a.turma===salaTurmaAt);
+  if(!aulas.length){toast('Nenhuma aula alocada para esta turma');return;}
+  const jaComSala=aulas.filter(a=>salaDe[a.key]&&salaDe[a.key]!==salaAtual);
+  if(jaComSala.length){
+    if(!confirm(`${jaComSala.length} aula(s) já têm outra sala. Sobrescrever com "${salaAtual}"?`))return;
+  }
+  aulas.forEach(a=>{salaDe[a.key]=salaAtual;});
+  toast(`✅ ${aulas.length} aula(s) de ${salaCursoAt} ${parseTurma(salaTurmaAt).sem} → ${salaAtual}`);
+  persist();renderSalaList();renderSalaGrade();
+}
+
 function limparSala(){if(!salaAtual)return;if(!confirm('Remover TODAS as aulas de '+salaAtual+'?'))return;getAllAulas().forEach(a=>{if(salaDe[a.key]===salaAtual)delete salaDe[a.key];});toast('🗑 Sala esvaziada');persist();renderSalaList();renderSalaGrade();}
 
 function openM(dia,sid,tnome){mSlot={dia,sid,tnome};selDisc=null;const g=gk(cursoAt,turmaAt);const cur=g[dia]?.[sid];if(cur)selDisc=cur;const{sem,turno}=parseTurma(turmaAt);document.getElementById('m-title').textContent='Selecionar disciplina';document.getElementById('m-sub').textContent=`${NOMES[cursoAt]||cursoAt} · ${sem}`;document.getElementById('m-slot').textContent=`${dia} — ${tnome} / Slot ${sid.split('-')[1]}`;document.getElementById('sq').value='';document.getElementById('ca').style.display='none';document.getElementById('br').style.display=cur?'block':'none';document.getElementById('bc').disabled=!cur;document.getElementById('prof-datalist').innerHTML=nomesProfessores().map(n=>`<option value="${esc(n)}">`).join('');document.getElementById('m-prof').value=cur?profDe(cursoAt,turmaAt,dia,sid,cur):'';
@@ -1191,7 +1315,60 @@ function atualizarResumoPublicacao(){const warn=document.getElementById('pub-war
 // ── PDF ──
 function buildPdfPage(title,subtitle,legendHtml,bodyHtml){return`<div class="pdf-page"><div class="pdf-header"><div class="pdf-logo"><div class="pdf-logo-box"><span>IFCE</span><span>Campus</span><span>Canindé</span></div><div class="pdf-inst">Instituto Federal de Educação,<br>Ciência e Tecnologia<br>Campus Canindé</div></div><div class="pdf-title-block"><div class="pdf-sem">${subtitle}</div><div class="pdf-turma">${title}</div></div><div class="pdf-asc">Sistema PIT/RIT</div></div>${legendHtml}${bodyHtml}<div class="pdf-footer"><span>Instituto Federal de Educação, Ciência e Tecnologia - Campus Canindé</span><span>Sistema PIT/RIT · ${new Date().toLocaleDateString('pt-BR')}</span></div></div>`;}
 function buildGradeTable(cellMap){let h=`<table class="pdf-table"><thead><tr><th class="th-time">Horário</th>`;DIAS_ABBR.forEach(d=>{h+=`<th class="col-day">${d}</th>`;});h+=`</tr></thead><tbody>`;SLOTS.forEach(slot=>{const cells=cellMap[slot.id]||{};h+=`<tr><td class="th-time"><div style="font-weight:700">${slot.l}</div><div style="font-size:7pt;color:#555">${slot.h}</div></td>`;DIAS.forEach((_,di)=>{const cell=cells[di];if(cell){h+=`<td><div class="pdf-cell"><div class="pdf-disc-name">${cell.nome}</div><div class="pdf-disc-code">${cell.codigo}</div><div class="pdf-disc-prof">${cell.professor}</div>${cell.sala?`<div class="pdf-disc-prof" style="border-top:none;padding-top:.5mm">🚪 ${cell.sala}</div>`:''}</div></td>`;}else{h+=`<td><div class="pdf-cell"></div></td>`;}});h+=`</tr>`;});h+=`</tbody></table>`;return h;}
-function gerarPDF(tipo){const sem=window._vigenteGlobal||'2026.2';const pdfDiv=document.getElementById('pdf-pages');pdfDiv.innerHTML='';let pages='';if(tipo==='turma'){for(const c of Object.keys(grade).sort()){for(const t of Object.keys(grade[c]||{}).sort()){const g=grade[c][t];let hasData=false;for(const dia of DIAS){if(g[dia]&&Object.keys(g[dia]).length>0){hasData=true;break;}}if(!hasData)continue;const{sem:ts,turno:tt}=parseTurma(t);const turmaLabel=`${c} ${ts}${tt?' - '+tt:''}`;const discSet=new Set();for(const dia of DIAS)for(const sid of Object.keys(g[dia]||{})){const id=g[dia][sid];if(id)discSet.add(id);}const discObjs=[...discSet].map(id=>DISC.find(x=>x.id===id)).filter(Boolean);let legend='<div class="pdf-legend"><div class="pdf-legend-title">Disciplinas</div><div class="pdf-legend-grid">';discObjs.forEach(d=>{legend+=`<div><strong>${d.codigo}</strong> ${d.nome}</div>`;});legend+='</div></div>';const cellMap={};SLOTS.forEach(slot=>{cellMap[slot.id]={};});DIAS.forEach((dia,di)=>{for(const sid of Object.keys(g[dia]||{})){const discId=g[dia][sid];const d=DISC.find(x=>x.id===discId);if(d){cellMap[sid][di]={nome:d.nome,codigo:d.codigo,professor:profDe(c,t,dia,sid,discId),sala:salaDe[aulaKey(c,t,dia,sid)]||''};}};});pages+=buildPdfPage(turmaLabel,'Semestre: '+sem,legend,buildGradeTable(cellMap));}}if(!pages){alert('Nenhuma aula alocada ainda.');return;}}else if(tipo==='professor'){const profMap={};for(const c of Object.keys(grade))for(const t of Object.keys(grade[c]||{})){const g=grade[c][t];const{sem:ts,turno:tt}=parseTurma(t);DIAS.forEach((dia,di)=>{for(const[sid,discId]of Object.entries(g[dia]||{})){const d=DISC.find(x=>x.id===discId);if(!d)continue;const prof=profDe(c,t,dia,sid,discId)||'A definir';if(!profMap[prof])profMap[prof]={};if(!profMap[prof][sid])profMap[prof][sid]={};profMap[prof][sid][di]={nome:d.nome,codigo:d.codigo,turma:`${c} ${ts}`,sala:salaDe[aulaKey(c,t,dia,sid)]||''};}});}const profs=Object.keys(profMap).sort();if(!profs.length){alert('Nenhuma aula alocada ainda.');return;}profs.forEach(prof=>{const cellMap={};SLOTS.forEach(slot=>{cellMap[slot.id]={};});Object.entries(profMap[prof]).forEach(([sid,dias])=>{Object.entries(dias).forEach(([di,cell])=>{cellMap[sid][di]={nome:cell.nome,codigo:cell.codigo,professor:cell.turma,sala:cell.sala||''};});});let total=0;Object.values(profMap[prof]).forEach(dias=>{total+=Object.keys(dias).length;});pages+=buildPdfPage(prof,'Semestre: '+sem+' · Grade por Professor',`<div style="font-size:8pt;color:#555;margin-bottom:3mm">Total de aulas: <strong>${total}</strong></div>`,buildGradeTable(cellMap));});}else if(tipo==='sala'){const bySala={};getAllAulas().forEach(a=>{const s=salaDe[a.key];if(s){(bySala[s]=bySala[s]||[]).push(a);}});const salas=Object.keys(bySala).sort((x,y)=>x.localeCompare(y,'pt'));if(!salas.length){alert('Nenhuma aula tem sala alocada ainda.');return;}salas.forEach(sala=>{const cellMap={};SLOTS.forEach(slot=>{cellMap[slot.id]={};});bySala[sala].forEach(a=>{const d=DISC.find(x=>x.id===a.discId);if(!d)return;const di=DIAS.indexOf(a.dia);const{sem:ts,turno:tt}=parseTurma(a.turma);cellMap[a.sid][di]={nome:d.nome,codigo:d.codigo,professor:profDe(a.curso,a.turma,a.dia,a.sid,a.discId)||'A definir',sala:`${a.curso} ${ts}${tt?' '+tt:''}`};});pages+=buildPdfPage(sala,'Semestre: '+sem+' · Ocupação por Sala',`<div style="font-size:8pt;color:#555;margin-bottom:3mm">Aulas: <strong>${bySala[sala].length}</strong></div>`,buildGradeTable(cellMap));});}// Gera HTML completo e baixa como arquivo — sem popup, sem dependência de navegador
+function gerarPDF(tipo){const sem=window._vigenteGlobal||'2026.2';const pdfDiv=document.getElementById('pdf-pages');pdfDiv.innerHTML='';let pages='';if(tipo==='turma'){for(const c of Object.keys(grade).sort()){for(const t of Object.keys(grade[c]||{}).sort()){const g=grade[c][t];let hasData=false;for(const dia of DIAS){if(g[dia]&&Object.keys(g[dia]).length>0){hasData=true;break;}}if(!hasData)continue;const{sem:ts,turno:tt}=parseTurma(t);const turmaLabel=`${c} ${ts}${tt?' - '+tt:''}`;const discSet=new Set();for(const dia of DIAS)for(const sid of Object.keys(g[dia]||{})){const id=g[dia][sid];if(id)discSet.add(id);}const discObjs=[...discSet].map(id=>DISC.find(x=>x.id===id)).filter(Boolean);let legend='<div class="pdf-legend"><div class="pdf-legend-title">Disciplinas</div><div class="pdf-legend-grid">';discObjs.forEach(d=>{legend+=`<div><strong>${d.codigo}</strong> ${d.nome}</div>`;});legend+='</div></div>';const cellMap={};SLOTS.forEach(slot=>{cellMap[slot.id]={};});DIAS.forEach((dia,di)=>{for(const sid of Object.keys(g[dia]||{})){const discId=g[dia][sid];const d=DISC.find(x=>x.id===discId);if(d){cellMap[sid][di]={nome:d.nome,codigo:d.codigo,professor:profDe(c,t,dia,sid,discId),sala:salaDe[aulaKey(c,t,dia,sid)]||''};}};});pages+=buildPdfPage(turmaLabel,'Semestre: '+sem,legend,buildGradeTable(cellMap));}}if(!pages){alert('Nenhuma aula alocada ainda.');return;}}else if(tipo==='professor'){
+  const profMap={};
+  for(const c of Object.keys(grade))for(const t of Object.keys(grade[c]||{})){
+    const g=grade[c][t];const{sem:ts,turno:tt}=parseTurma(t);
+    DIAS.forEach((dia,di)=>{
+      for(const[sid,discId]of Object.entries(g[dia]||{})){
+        const d=DISC.find(x=>x.id===discId);if(!d)continue;
+        const prof=profDe(c,t,dia,sid,discId)||'A definir';
+        if(!profMap[prof])profMap[prof]={};
+        if(!profMap[prof][sid])profMap[prof][sid]={};
+        profMap[prof][sid][di]={
+          nome:(nomeOverride[aulaKey(c,t,dia,sid)]||d.nome),
+          codigo:(codOverride[aulaKey(c,t,dia,sid)]||d.codigo),
+          turma:`${c} ${ts}${tt?' ('+tt+')':''}`,
+          sala:salaDe[aulaKey(c,t,dia,sid)]||''
+        };
+      }
+    });
+  }
+  // Ordem alfabética — todos num único arquivo
+  const profs=Object.keys(profMap).sort((a,b)=>a.localeCompare(b,'pt'));
+  if(!profs.length){alert('Nenhuma aula alocada ainda.');return;}
+
+  // Índice na primeira página
+  let indiceHtml='<div style="font-size:8pt;color:#000;margin-bottom:4mm;column-count:2;column-gap:8mm">';
+  profs.forEach((prof,i)=>{
+    const tot=Object.values(profMap[prof]).reduce((a,d)=>a+Object.keys(d).length,0);
+    indiceHtml+=`<div style="padding:1mm 0;border-bottom:0.3pt solid #ddd">${i+1}. ${prof} <span style="color:#777">(${tot}h)</span></div>`;
+  });
+  indiceHtml+='</div>';
+  pages+=buildPdfPage(
+    'Horários dos Docentes',
+    'Semestre: '+sem+' · '+profs.length+' professores · ordem alfabética',
+    '',
+    indiceHtml
+  );
+
+  // Uma página por professor
+  profs.forEach(prof=>{
+    const cellMap={};SLOTS.forEach(slot=>{cellMap[slot.id]={};});
+    Object.entries(profMap[prof]).forEach(([sid,dias])=>{
+      Object.entries(dias).forEach(([di,cell])=>{
+        cellMap[sid][di]={nome:cell.nome,codigo:cell.codigo,professor:cell.turma,sala:cell.sala||''};
+      });
+    });
+    let total=0;Object.values(profMap[prof]).forEach(dias=>{total+=Object.keys(dias).length;});
+    pages+=buildPdfPage(
+      prof,
+      'Semestre: '+sem+' · Grade por Professor',
+      `<div style="font-size:8pt;color:#555;margin-bottom:3mm">Total de aulas: <strong>${total}</strong></div>`,
+      buildGradeTable(cellMap)
+    );
+  });
+}else if(tipo==='sala'){const bySala={};getAllAulas().forEach(a=>{const s=salaDe[a.key];if(s){(bySala[s]=bySala[s]||[]).push(a);}});const salas=Object.keys(bySala).sort((x,y)=>x.localeCompare(y,'pt'));if(!salas.length){alert('Nenhuma aula tem sala alocada ainda.');return;}salas.forEach(sala=>{const cellMap={};SLOTS.forEach(slot=>{cellMap[slot.id]={};});bySala[sala].forEach(a=>{const d=DISC.find(x=>x.id===a.discId);if(!d)return;const di=DIAS.indexOf(a.dia);const{sem:ts,turno:tt}=parseTurma(a.turma);cellMap[a.sid][di]={nome:d.nome,codigo:d.codigo,professor:profDe(a.curso,a.turma,a.dia,a.sid,a.discId)||'A definir',sala:`${a.curso} ${ts}${tt?' '+tt:''}`};});pages+=buildPdfPage(sala,'Semestre: '+sem+' · Ocupação por Sala',`<div style="font-size:8pt;color:#555;margin-bottom:3mm">Aulas: <strong>${bySala[sala].length}</strong></div>`,buildGradeTable(cellMap));});}// Gera HTML completo e baixa como arquivo — sem popup, sem dependência de navegador
 const pdfCSS = `
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:Arial,sans-serif;background:#fff}
