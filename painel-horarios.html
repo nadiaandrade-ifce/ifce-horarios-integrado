@@ -498,8 +498,9 @@ onAuthStateChanged(auth, user=>{
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('app').style.display='block';
     document.getElementById('userDisplay').textContent=user.email;
-    // Controle de abas por perfil
     aplicarPerfil(user.email);
+    // Carregar catálogo do Firestore (substitui DISC hard-coded se houver importação)
+    carregarCatalogoDB();
   } else if(user){
     signOut(auth);
     const el=document.getElementById('loginError'); el.textContent='Email não autorizado.'; el.style.display='block';
@@ -508,6 +509,52 @@ onAuthStateChanged(auth, user=>{
     document.getElementById('app').style.display='none';
   }
 });
+
+async function carregarCatalogoDB(){
+  // Tenta carregar o catálogo mais recente salvo no Firestore
+  // Se não existir, mantém o DISC hard-coded do código
+  try {
+    // Busca todos os documentos em catalogo_disciplinas, pega o mais recente
+    const snap = await _getDocs(_collection(_db,'catalogo_disciplinas'));
+    if(snap.empty) return; // Nenhuma importação feita ainda — usa DISC do código
+    // Pega o catálogo mais recente (maior semestre)
+    let melhorDoc = null;
+    snap.forEach(d => {
+      if(!melhorDoc || d.id > melhorDoc.id) melhorDoc = d;
+    });
+    if(!melhorDoc) return;
+    const data = melhorDoc.data();
+    const novasDiscs = data.disciplinas || [];
+    if(!novasDiscs.length) return;
+    // Substituir DISC
+    DISC.length = 0;
+    novasDiscs.forEach(d => DISC.push(d));
+    // Atualizar seletores de curso e turma
+    const sc = document.getElementById('sel-c');
+    if(sc){
+      sc.innerHTML = '';
+      getCursos().forEach(c=>{
+        const o=document.createElement('option');
+        o.value=c; o.textContent=`${c} — ${NOMES[c]||c}`;
+        sc.appendChild(o);
+      });
+      cursoAt=getCursos()[0]||''; sc.value=cursoAt;
+      const ss=document.getElementById('sel-t'); ss.innerHTML='';
+      getTurmas(cursoAt).forEach(t=>{
+        const o=document.createElement('option');
+        o.value=t.val; o.textContent=t.sem+(t.turno?' — '+t.turno:'');
+        ss.appendChild(o);
+      });
+      turmaAt=ss.value||'';
+    }
+    // Atualizar seletores do mapa de salas também
+    popularSalaSeletores();
+    renderStats(); renderGrid();
+    console.log('Catálogo carregado do Firestore:', novasDiscs.length, 'disciplinas ·', melhorDoc.id);
+  } catch(e) {
+    console.warn('Catálogo não carregado do Firestore (usando embutido):', e.message);
+  }
+}
 
 function aplicarPerfil(email){
   const full = isFullAdmin(email);
@@ -803,20 +850,38 @@ async function processXLSX(file){
 
     // Detecta turno a partir de texto
     function detectTurno(txt){
-      const t = txt.toUpperCase();
-      if(/NOTUR|NOITE/.test(t)) return 'Noite';
-      if(/TARDE/.test(t))       return 'Tarde';
-      if(/MANHã|MANHA|MANHÃ/.test(t)) return 'Manhã';
-      if(/INTEGRAL/.test(t))    return 'Integral';
+      const t = txt.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      if(/NOTUR|NOITE/.test(t))           return 'Noite';
+      if(/TARDE/.test(t))                 return 'Tarde';
+      if(/MANHA/.test(t))                 return 'Manhã';
+      if(/INTEGRAL/.test(t))              return 'Integral';
+      // Regime anual sem turno explícito → Integral (ELE, EVT)
+      if(/REGIME\s+ANUAL|ANO\s+(I|II|III|IV)/.test(t)) return 'Integral';
       return '';
     }
 
-    // Detecta semestre a partir de texto  ex: "SEMESTRE 2", "S4", "A1"
+    // Detecta semestre — suporta: SEMESTRE 2, S4, A1, PRIMEIRO ANO, ANO I, 1º ANO
     function detectSem(txt){
+      const u = txt.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
       let m;
-      m = txt.match(/SEMESTRE\s+(\d+)/i);   if(m) return 'S'+m[1];
-      m = txt.match(/\bS(\d+)\b/i);          if(m) return 'S'+m[1];
-      m = txt.match(/\bA(\d+)\b/i);          if(m) return 'A'+m[1];
+      // "PRIMEIRO ANO", "SEGUNDO ANO", "TERCEIRO ANO"
+      if(/PRIMEIRO\s+ANO/.test(u)) return 'A1';
+      if(/SEGUNDO\s+ANO/.test(u))  return 'A2';
+      if(/TERCEIRO\s+ANO/.test(u)) return 'A3';
+      if(/QUARTO\s+ANO/.test(u))   return 'A4';
+      // "ANO I", "ANO II", "ANO III" (romanos)
+      const romanos = {'I':'1','II':'2','III':'3','IV':'4','V':'5','VI':'6'};
+      m = u.match(/\bANO\s+(I{1,3}V?|VI?)\b/);
+      if(m && romanos[m[1]]) return 'A'+romanos[m[1]];
+      // "1º ANO", "2º ANO"
+      m = u.match(/(\d+)[\u00BA°º]\s*ANO/); if(m) return 'A'+m[1];
+      // "SEMESTRE 2", "SEMESTRE IV"
+      m = u.match(/SEMESTRE\s+(\d+)/i); if(m) return 'S'+m[1];
+      m = u.match(/SEMESTRE\s+(I{1,3}V?|VI?)\b/);
+      if(m && romanos[m[1]]) return 'S'+romanos[m[1]];
+      // "S4", "A1" isolados
+      m = txt.match(/\bS(\d+)\b/i); if(m) return 'S'+m[1];
+      m = txt.match(/\bA(\d+)\b/i); if(m) return 'A'+m[1];
       return '';
     }
 
