@@ -265,8 +265,8 @@ select:focus{outline:none;border-color:#2e7d32}
     <button class="tab on" data-a="grade" onclick="setAba('grade')">📋 Por turma</button>
     <button class="tab" data-a="prof" onclick="setAba('prof')">👤 Por professor</button>
     <button class="tab" data-a="salas" onclick="setAba('salas')">🚪 Mapa de salas</button>
-    <button class="tab" data-a="publicar" onclick="setAba('publicar')">🚀 Publicar semestre</button>
-    <button class="tab" data-a="admin" onclick="setAba('admin')">⚙️ Administração</button>
+    <button class="tab" data-a="lotacao" id="tab-lotacao" onclick="setAba('lotacao')" style="display:none">📊 Importar lotação</button>
+
   </div>
 
   <!-- ── Aba: Por turma ── -->
@@ -325,92 +325,27 @@ select:focus{outline:none;border-color:#2e7d32}
     </div>
   </div>
 
-  <!-- ── Aba: Publicar semestre ── -->
-  <div id="view-publicar" style="display:none">
+
+  <!-- ── Aba: Importar lotação (só admin) ── -->
+  <div id="view-lotacao" style="display:none">
     <div class="ctn">
-
-      <div class="pub-card">
-        <h3>🚀 Publicar grade no Firestore</h3>
-        <p>Ao publicar, a grade montada nesta ferramenta é gravada automaticamente no Firestore como semestre vigente. Os professores verão seus horários no PIT/RIT e os alunos na consulta pública — sem necessidade de importar planilha.</p>
-
-        <div class="pub-summary" id="pub-summary">
-          <div class="pub-item">Carregando resumo da grade…</div>
-        </div>
-
-        <div class="pub-warn" id="pub-warn" style="display:none">
-          ⚠️ Nenhum semestre vigente definido. Configure um semestre na aba <strong>Administração</strong> antes de publicar.
-        </div>
-
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-g" id="btn-publicar" onclick="publicarGrade()" style="font-size:14px;padding:10px 24px">
-            ✅ Publicar grade vigente
-          </button>
-          <button class="btn" onclick="setAba('grade')">← Voltar à montagem</button>
-        </div>
-        <div class="log" id="pub-log"></div>
-      </div>
-
       <div class="adm-section">
-        <h3>📋 Histórico de publicações</h3>
-        <div class="sub">Dados já publicados no Firestore por semestre</div>
-        <div id="pub-stats-detalhe" style="font-size:12px;color:var(--txt2)">Carregando…</div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ── Aba: Administração ── -->
-  <div id="view-admin" style="display:none">
-    <div class="ctn">
-
-      <div class="stats-grid">
-        <div class="stat-card"><div class="num" id="statVigente" style="font-size:18px">—</div><div class="lbl">Semestre vigente</div></div>
-        <div class="stat-card"><div class="num" id="statSemestres">0</div><div class="lbl">Semestres cadastrados</div></div>
-        <div class="stat-card"><div class="num" id="statDocentes">0</div><div class="lbl">Docs. publicados</div></div>
-      </div>
-
-      <!-- Cadastrar semestre -->
-      <div class="adm-section">
-        <h3>📅 Semestres</h3>
-        <div class="sub">Cadastre semestres e defina qual está vigente. O semestre vigente é o que aparece na consulta pública e no PIT/RIT dos professores.</div>
-        <div class="form-row">
+        <h3>📊 Importar planilha de lotação docente</h3>
+        <div class="sub">Importe a planilha Excel de oferta e lotação (.xlsx). O sistema lerá todas as abas (cursos) e atualizará automaticamente o catálogo de disciplinas. Após a importação, a comissão já pode montar os horários.</div>
+        <div class="form-row" style="margin-bottom:14px">
           <div class="form-group">
-            <label>Novo semestre</label>
-            <input type="text" id="newSem" placeholder="ex: 2026.2" maxlength="6">
-          </div>
-          <button class="btn btn-p" onclick="addSemestre()">+ Cadastrar</button>
-        </div>
-        <div class="sem-list" id="semList"><div style="font-size:12px;color:var(--txt2)">Carregando…</div></div>
-      </div>
-
-      <!-- Importar planilha (alternativa) -->
-      <div class="adm-section">
-        <h3>📊 Importar planilha de lotação (alternativa)</h3>
-        <div class="sub">Alternativa à montagem visual. Importe uma planilha Excel/CSV com o quadro de horários dos professores. Os dados são gravados diretamente no Firestore como horários dos docentes (coleção <code>horarios</code>), sem afetar a grade de turmas montada neste painel.</div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Semestre de destino</label>
-            <select id="uploadSem"></select>
+            <label>Semestre de referência</label>
+            <input type="text" id="uploadSem" placeholder="ex: 2026.2" maxlength="6" style="padding:8px 10px;border:1px solid var(--bdr);border-radius:var(--r);font-size:13px;color:var(--txt);background:var(--card2);font-family:inherit;width:100%">
           </div>
         </div>
         <div class="upload-zone" id="uploadZone" onclick="document.getElementById('xlsxFile').click()">
-          <div style="font-size:32px">📂</div>
-          <p>Clique ou arraste um arquivo <strong>.xlsx</strong>, <strong>.xls</strong> ou <strong>.csv</strong></p>
-          <input type="file" id="xlsxFile" accept=".xlsx,.xls,.csv" onchange="handleXLSX(event)" style="display:none">
+          <div style="font-size:36px">📂</div>
+          <p>Clique ou arraste a planilha de lotação aqui</p>
+          <p style="font-size:11px;color:var(--txt3)">.xlsx ou .xls · Planilha com abas por curso</p>
+          <input type="file" id="xlsxFile" accept=".xlsx,.xls" onchange="handleXLSX(event)" style="display:none">
         </div>
-        <div class="log" id="importLog"></div>
+        <div class="log" id="importLog" style="display:none"></div>
       </div>
-
-      <!-- Limpar dados -->
-      <div class="adm-section">
-        <h3>🗑 Manutenção de dados</h3>
-        <div class="sub">Operações destrutivas e irreversíveis.</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-d" onclick="limparSemestreFirestore()">Limpar semestre do Firestore</button>
-          <button class="btn btn-d" onclick="removerSemestreAdmin()">Remover semestre cadastrado</button>
-        </div>
-      </div>
-
     </div>
   </div>
 
@@ -560,9 +495,6 @@ onAuthStateChanged(auth, user=>{
     document.getElementById('userDisplay').textContent=user.email;
     // Controle de abas por perfil
     aplicarPerfil(user.email);
-    loadSemestres();
-    loadPublishedStats();
-    atualizarHeaderSem();
   } else if(user){
     signOut(auth);
     const el=document.getElementById('loginError'); el.textContent='Email não autorizado.'; el.style.display='block';
@@ -574,12 +506,9 @@ onAuthStateChanged(auth, user=>{
 
 function aplicarPerfil(email){
   const full = isFullAdmin(email);
-  // Abas restritas: publicar e administração — só para admins completos
-  ['publicar','admin'].forEach(id=>{
-    const tab = document.querySelector('.tab[data-a="'+id+'"]');
-    if(tab) tab.style.display = full ? '' : 'none';
-  });
-  // Badge de perfil
+  // Aba de importar lotação: só para admins
+  const tabLotacao = document.getElementById('tab-lotacao');
+  if(tabLotacao) tabLotacao.style.display = full ? '' : 'none';
   const badge = document.getElementById('userDisplay');
   if(badge) badge.textContent = email + (full ? ' · Admin' : ' · Comissão');
 }
@@ -635,8 +564,9 @@ function renderSemestres(){
 }
 
 function updateUploadSelect(){
-  const sel=document.getElementById('uploadSem');
-  sel.innerHTML=semestres.map(s=>`<option value="${s.id}"${s.id===vigente?' selected':''}>${s.id}${s.id===vigente?' (vigente)':''}</option>`).join('');
+  // uploadSem agora é um input de texto — apenas preenche se estiver vazio
+  const el=document.getElementById('uploadSem');
+  if(el && !el.value && window._vigenteGlobal) el.value = window._vigenteGlobal;
 }
 
 window.addSemestre = async function(){
@@ -817,7 +747,7 @@ window.publicarGrade = async function(){
 };
 
 // ── Importar XLSX (alternativa) ──
-window.handleXLSX = function(event){ const f=event.target.files[0]; if(f) processXLSX(f); };
+window.handleXLSX = function(event){ const f=event.target.files[0]; if(f) processXLSX(f); event.target.value=''; };
 const uploadZone=document.getElementById('uploadZone');
 uploadZone.addEventListener('dragover',e=>{e.preventDefault();uploadZone.classList.add('dragover');});
 uploadZone.addEventListener('dragleave',()=>uploadZone.classList.remove('dragover'));
@@ -839,8 +769,9 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 async function processXLSX(file){
   const nm = file.name.toLowerCase();
   if(!nm.endsWith('.xlsx')&&!nm.endsWith('.xls'))return alert('Selecione um arquivo .xlsx ou .xls');
-  const sem = document.getElementById('uploadSem').value;
-  if(!sem) return alert('Selecione o semestre de destino.');
+  const semEl = document.getElementById('uploadSem');
+  const sem = (semEl ? semEl.value : '').trim();
+  if(!sem) return alert('Informe o semestre de destino (ex: 2026.2).');
 
   const log = document.getElementById('importLog');
   log.style.display='block';
@@ -1101,7 +1032,7 @@ function nomesProfessores(){const set=new Set();DISC.forEach(d=>{if(d.professor&
 function setAba(a){
   abaAtual=a;
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.a===a));
-  ['grade','prof','salas','publicar','admin'].forEach(id=>{
+  ['grade','prof','salas','lotacao'].forEach(id=>{
     const el=document.getElementById('view-'+id);
     if(el) el.style.display=(id===a)?'block':'none';
   });
