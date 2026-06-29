@@ -895,12 +895,26 @@ async function processXLSX(file){
     }
 
     // Normaliza carga horária — pode vir como "80h", "80", 80, "2"
+    // Extrai CH semanal correta conforme o formato da célula:
+    // "40h - 1h/a" ou "80h - 2h/a"  → usa o h/a diretamente (ELE, EVT anuais)
+    // "2.0", "4.0"                   → já é crédito semanal (TUR, MUS, PED, CLEF, MAT)
+    // "40.0", "80.0"                 → horas totais semestrais → divide por 20 (ADS, RED, INF)
     function normCH(v){
       if(!v && v!==0) return 2;
-      const n = parseInt(String(v).replace(/[^\d]/g,''));
+      const s = String(v).trim();
+      // Formato "Xh - Yh/a" ou "X h - Y h/a" → pega o Y (aulas/semana)
+      const haMatch = s.match(/(\d+)\s*h\/a/i);
+      if(haMatch) return Math.max(1, parseInt(haMatch[1]));
+      // Formato decimal "2.0", "4.0" → crédito semanal se ≤ 10
+      // "40.0", "80.0" → horas totais → divide por 20
+      const flt = parseFloat(s);
+      if(!isNaN(flt) && flt > 0){
+        if(flt <= 10) return Math.round(flt);          // 2.0, 4.0 → crédito direto
+        return Math.max(1, Math.round(flt/20));        // 40.0, 80.0 → horas totais
+      }
+      // Formato inteiro ou "40h", "80h" → horas totais → divide por 20
+      const n = parseInt(s.replace(/[^\d]/g,''));
       if(isNaN(n)||n<=0) return 2;
-      // Planilha usa horas totais (80h = 4 créditos semanais = 4h na grade)
-      // ou créditos diretos (2, 4)
       if(n >= 40) return Math.round(n/20); // 40h→2, 80h→4, 100h→5
       return n; // já é crédito semanal
     }
