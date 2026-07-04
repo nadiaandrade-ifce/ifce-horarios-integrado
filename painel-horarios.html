@@ -278,6 +278,9 @@ select:focus{outline:none;border-color:#2e7d32}
       <label>Turma / Semestre</label>
       <select id="sel-t" onchange="onTurma()"></select>
       <div style="flex:1"></div>
+      <div style="display:flex;align-items:center;gap:6px;padding:4px 12px;background:#fff3e0;border:1.5px solid #ffb74d;border-radius:8px;font-size:11px;color:#e65100;font-weight:600">
+        💾 Exporte o JSON para salvar seu trabalho
+      </div>
       <button class="btn" onclick="limpar()">🗑 Limpar grade</button>
       <label class="btn" style="cursor:pointer">⬆ Importar JSON<input type="file" id="imp-file" accept=".json" onchange="importJSON(this.files[0])" style="display:none"></label>
       <button class="btn btn-g" onclick="exportJSON()">⬇ Exportar JSON</button>
@@ -494,7 +497,12 @@ window.doLogin = async function(){
   btn.disabled=false; btn.textContent='✉ Enviar link de acesso';
 };
 window.voltarEmail = function(){ document.getElementById('sentStep').style.display='none'; document.getElementById('emailStep').style.display='block'; };
-window.doLogout = function(){ signOut(auth); };
+window.doLogout = function(){
+  if(getAllAulas && getAllAulas().length > 0){
+    if(!confirm('⚠️ Lembre-se de exportar o JSON antes de sair!\n\nSe não exportar, as alterações feitas nesta sessão só estarão disponíveis neste navegador e neste computador.\n\nDeseja sair mesmo assim?')) return;
+  }
+  signOut(auth);
+};
 
 if(isSignInWithEmailLink(auth, window.location.href)){
   let email = localStorage.getItem('emailForSignIn') || prompt('Confirme seu email:');
