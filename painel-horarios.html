@@ -374,13 +374,26 @@ select:focus{outline:none;border-color:#2e7d32}
       </div>
       <div class="dl" id="dl"></div>
       <div class="profedit">
-        <label>Código da disciplina (editar se necessário)</label>
-        <input id="m-cod" placeholder="Ex: 10.302.51" style="margin-bottom:8px">
-        <label>Nome da disciplina (editar se necessário)</label>
-        <input id="m-nome" placeholder="Nome da disciplina" style="margin-bottom:8px">
-        <label>Professor (editar se necessário)</label>
-        <input id="m-prof" list="prof-datalist" placeholder="Nome do professor" oninput="checkCF()">
+
+        <div style="background:#fff3e0;border:1.5px solid #ffb74d;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#e65100;line-height:1.6">
+          ⚠️ <strong>Verifique antes de confirmar:</strong><br>
+          • O <strong>código</strong> deve ser preenchido para todas as disciplinas<br>
+          • O <strong>nome</strong> deve ser completo, sem abreviações<br>
+          • O <strong>professor</strong> deve ter nome e sobrenome (ex: João Silva)
+        </div>
+
+        <label>Código da disciplina</label>
+        <input id="m-cod" placeholder="Ex: 10.302.51 — obrigatório" style="margin-bottom:8px">
+
+        <label>Nome completo da disciplina</label>
+        <input id="m-nome" placeholder="Nome completo, sem abreviações" style="margin-bottom:8px">
+
+        <label>Professor — informe nome e sobrenome</label>
+        <input id="m-prof" list="prof-datalist" placeholder="Ex: João Silva" oninput="checkCF()">
         <datalist id="prof-datalist"></datalist>
+        <div id="aviso-prof" style="display:none;font-size:10px;color:#e65100;margin-top:4px;font-weight:600">
+          ⚠️ Digite pelo menos nome e sobrenome do professor
+        </div>
         <div style="font-size:10px;color:var(--txt3);margin-top:4px">Deixe em branco para usar os dados padrão da disciplina</div>
       </div>
       <div class="ca" id="ca" style="display:none">⚠️ <span id="cm"></span></div>
@@ -1347,7 +1360,23 @@ function renderDL(){const q=document.getElementById('sq').value.toLowerCase();co
 function selD(id){selDisc=id;document.getElementById('bc').disabled=false;if(mSlot){const k=aulaKey(cursoAt,turmaAt,mSlot.dia,mSlot.sid);const d2=DISC.find(x=>x.id===id)||{};const base=d2.professor||'';document.getElementById('m-prof').value=(profOverride[k]!==undefined&&profOverride[k]!=='')?profOverride[k]:base;
 document.getElementById('m-cod').value=(codOverride[k]!==undefined&&codOverride[k]!=='')?codOverride[k]:(d2.codigo||'');
 document.getElementById('m-nome').value=(nomeOverride[k]!==undefined&&nomeOverride[k]!=='')?nomeOverride[k]:(d2.nome||'');}renderDL();}
-function checkCF(){if(!selDisc||!mSlot)return;const d=DISC.find(x=>x.id===selDisc);if(!d)return;const prof=(document.getElementById('m-prof').value||'').trim()||d.professor;const cf=hasConflict(prof,mSlot.dia,mSlot.sid,cursoAt,turmaAt);const el=document.getElementById('ca');if(cf){document.getElementById('cm').textContent=`${prof} já está alocado(a) neste horário em outra turma.`;el.style.display='flex';}else el.style.display='none';}
+function checkCF(){
+  if(!selDisc||!mSlot)return;
+  const d=DISC.find(x=>x.id===selDisc);if(!d)return;
+  const profVal=(document.getElementById('m-prof').value||'').trim();
+  const prof=profVal||d.professor;
+  // Aviso de nome incompleto (menos de 2 palavras)
+  const avisoProf=document.getElementById('aviso-prof');
+  if(avisoProf){
+    const palavras=profVal.trim().split(/\s+/).filter(Boolean);
+    avisoProf.style.display=(profVal&&palavras.length<2)?'block':'none';
+  }
+  // Conflito de horário
+  const cf=hasConflict(prof,mSlot.dia,mSlot.sid,cursoAt,turmaAt);
+  const el=document.getElementById('ca');
+  if(cf){document.getElementById('cm').textContent=`${prof} já está alocado(a) neste horário em outra turma.`;el.style.display='flex';}
+  else el.style.display='none';
+}
 function confSlot(){if(!selDisc||!mSlot)return;const g=gk(cursoAt,turmaAt);const d=DISC.find(x=>x.id===selDisc);if(!d)return;if(!g[mSlot.dia])g[mSlot.dia]={};const base=d.professor||'';
 const valCod=(document.getElementById('m-cod').value||'').trim();
 const valNome=(document.getElementById('m-nome').value||'').trim();const val=(document.getElementById('m-prof').value||'').trim();const setProf=(dia,sid)=>{
